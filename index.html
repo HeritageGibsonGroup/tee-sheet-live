@@ -27,6 +27,11 @@
     background:#3a2a12; color:#F6E7C9; font-size:12.5px; text-align:center; padding:9px 14px; line-height:1.5;
   }
   .ts-warn-banner b{ color:#FFD98A; }
+  .ts-test-banner{
+    background:repeating-linear-gradient(135deg, #7A1F1F, #7A1F1F 10px, #5C1616 10px, #5C1616 20px);
+    color:#FFE9E9; font-size:12.5px; font-weight:700; letter-spacing:.04em; text-align:center;
+    padding:9px 14px; line-height:1.5; text-transform:uppercase;
+  }
   .ts-header{
     background:var(--fairway);
     background-image:
@@ -1545,6 +1550,7 @@
     if(activeSection === 'admin' && !isAdmin) activeSection = 'schedule';
     if(data.roster.length === 0 && activeSection !== 'roster'){
       root.innerHTML = `
+        ${testBannerHtml()}
         ${storageAvailable ? '' : warnBannerHtml()}
         <div class="ts-header">
           <p class="ts-eyebrow">Tee Sheet</p>
@@ -1599,6 +1605,7 @@
     const meHasPin = me && data.playerPins[me.id];
 
     let html = `
+      ${testBannerHtml()}
         ${storageAvailable ? '' : warnBannerHtml()}
       <div class="ts-header">
         <h1 class="ts-title">Heritage Gibson Group</h1>
@@ -1606,7 +1613,7 @@
           ${data.roster.length} Player${data.roster.length===1?'':'s'}
           <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill">${isAdmin ? '🔓 Admin unlocked' : '🔒 Admin'}</button>
         </p>
-        <p class="ts-version">Version dated ${VERSION_DATE}</p>
+        <p class="ts-version">Updated ${VERSION_DATE}</p>
         <p class="ts-sub">Pick your dates below — and if you can only play 9, say so. Booking duty is set by the league admin; the club opens tee time booking ${BOOKING_WINDOW_DAYS} days out.</p>
       </div>
       <div class="ts-body">
@@ -1651,8 +1658,8 @@
           <div class="ts-duty-controls" style="margin-top:0; padding-top:0; border-top:none;">
             <div class="ts-duty-sort">
               <button class="ts-duty-sort-btn ${scheduleSort==='calendar'?'active':''}" data-schedule-sort="calendar">Calendar view</button>
-              <button class="ts-duty-sort-btn ${scheduleSort==='date'?'active':''}" data-schedule-sort="date">Sort by date</button>
-              ${scheduleSort === 'date' ? `<button class="ts-duty-sort-btn" data-schedule-sort="person">Sort by person</button>` : ''}
+              <button class="ts-duty-sort-btn ${scheduleSort==='date'?'active':''}" data-schedule-sort="date">List by date</button>
+              ${scheduleSort === 'date' ? `<button class="ts-duty-sort-btn" data-schedule-sort="person">List by person</button>` : ''}
               <button class="ts-duty-sort-btn ${scheduleSort==='grid'?'active':''}" data-schedule-sort="grid">Grid view</button>
             </div>
             ${(scheduleSort === 'calendar' || scheduleSort === 'grid') ? '' : `
@@ -1904,6 +1911,10 @@
 
   function warnBannerHtml(){
     return `<div class="ts-warn-banner"><b>Heads up:</b> this looks like it's open outside Claude, so changes won't save or sync for others. Open it from the file card in the chat instead.</div>`;
+  }
+
+  function testBannerHtml(){
+    return `<div class="ts-test-banner">⚠ Test version — changes here don't affect the live app</div>`;
   }
 
   function renderRosterPanel(el){
