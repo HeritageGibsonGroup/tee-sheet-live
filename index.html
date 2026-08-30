@@ -2555,10 +2555,10 @@
         confirmControl = `<div class="ts-duty-row-sub ts-confirm-row">
             <label>Confirmed:</label>
             <input type="number" min="0" step="1" data-confirm-key="${r.playKey}" value="${confirmed || ''}" placeholder="0" style="width:44px;">
-            <span>tee time${confirmed===1?'':'s'} booked</span>
+            <span>tee time${confirmed===1?'':'s'} booked for ${playLabel}</span>
           </div>`;
       } else if(typeof confirmed === 'number' && confirmed > 0){
-        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} confirmed</div>`;
+        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} confirmed for ${playLabel}</div>`;
       }
 
       return `
