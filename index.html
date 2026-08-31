@@ -2267,8 +2267,18 @@
       // from today forward, and a booking day can slip into the past before
       // anyone gets a chance to confirm it there.
       const dutyForThisDate = dutyForKey(key);
-      const canConfirmThis = !closure && (isAdmin || (meId && dutyForThisDate && dutyForThisDate.id === meId));
+      // The pro shop can only be visited on or after the actual booking day (14 days
+      // before this play date) — so the assigned duty person can't enter a real
+      // confirmed count before then, only once that day has arrived. Admins can
+      // still fix/clear a value any time, e.g. to correct a stray entry.
+      const bookDateForThis = new Date(d); bookDateForThis.setDate(bookDateForThis.getDate() - BOOKING_WINDOW_DAYS);
+      const bookingDayArrivedForThis = daysBetween(today, bookDateForThis) <= 0;
+      const canConfirmThis = !closure && (isAdmin || (meId && bookingDayArrivedForThis && dutyForThisDate && dutyForThisDate.id === meId));
       const confirmedThis = data.confirmedTeeTimes[key];
+      const playLabelForThis = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
+      const bookDayRefForThis = daysBetween(today, bookDateForThis) === 0
+        ? 'today'
+        : `on ${DOW_NAMES[bookDateForThis.getDay()]}, ${MON_NAMES[bookDateForThis.getMonth()]} ${bookDateForThis.getDate()}`;
       let confirmThisControl = '';
       if(canConfirmThis){
         confirmThisControl = `<div class="ts-confirm-row" style="margin-top:6px;">
@@ -2277,10 +2287,10 @@
               <option value="" ${!confirmedThis?'selected':''}>–</option>
               ${[1,2,3].map(n => `<option value="${n}" ${confirmedThis===n?'selected':''}>${n}</option>`).join('')}
             </select>
-            <span>tee time${confirmedThis===1?'':'s'} booked for this date</span>
+            <span>tee time${confirmedThis===1?'':'s'} booked ${bookDayRefForThis} for ${playLabelForThis}</span>
           </div>`;
       } else if(typeof confirmedThis === 'number' && confirmedThis > 0){
-        confirmThisControl = `<div class="ts-duty-row-sub" style="margin-top:6px;">✅ ${confirmedThis} tee time${confirmedThis===1?'':'s'} confirmed for this date</div>`;
+        confirmThisControl = `<div class="ts-duty-row-sub" style="margin-top:6px;">✅ ${confirmedThis} tee time${confirmedThis===1?'':'s'} confirmed for ${playLabelForThis}</div>`;
       }
 
       const countBadge = capacity != null
@@ -2885,6 +2895,7 @@
   }
 
   function renderDutyPanel(el, schedule){
+    const today = new Date(); today.setHours(0,0,0,0);
     let rows = schedule.map(d => {
       const target = new Date(d); target.setDate(target.getDate() + BOOKING_WINDOW_DAYS);
       const targetKey = fmtDateKey(target);
@@ -2941,7 +2952,11 @@
         ? `<span style="color:var(--rust); font-weight:600;">🚫 Course closed two weeks from today — no need to get tee times</span>`
         : `Head to the pro shop ${dayRef} ${arrivalPhrase} and request ${r.tt} tee time${r.tt===1?'':'s'} for ${playLabel}.`;
 
-      const canConfirm = !r.closed && (isAdmin || (meId && r.assigned && r.assigned.id === meId));
+      // Same rule as the date card: can't confirm real tee times before the actual
+      // booking day (r.bookDate) has arrived — you can only go to the pro shop in
+      // the present, not the future. Admins can still fix/clear a value any time.
+      const bookingDayArrived = daysBetween(today, r.bookDate) <= 0;
+      const canConfirm = !r.closed && (isAdmin || (meId && bookingDayArrived && r.assigned && r.assigned.id === meId));
       const confirmed = data.confirmedTeeTimes[r.playKey];
       let confirmControl = '';
       if(canConfirm){
@@ -2951,10 +2966,10 @@
               <option value="" ${!confirmed?'selected':''}>–</option>
               ${[1,2,3].map(n => `<option value="${n}" ${confirmed===n?'selected':''}>${n}</option>`).join('')}
             </select>
-            <span>tee time${confirmed===1?'':'s'} booked</span>
+            <span>tee time${confirmed===1?'':'s'} booked ${dayRef} for ${playLabel}</span>
           </div>`;
       } else if(typeof confirmed === 'number' && confirmed > 0){
-        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} confirmed</div>`;
+        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} confirmed for ${playLabel}</div>`;
       }
 
       return `
