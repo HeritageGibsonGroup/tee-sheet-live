@@ -2260,37 +2260,11 @@
 
       const closure = data.closures[key];
 
-      // Confirming tee times booked belongs to whoever had duty FOR this date
-      // (not the target date above) — this is the same field Booking Duty
-      // edits, just reachable here too since that tab only shows booking days
-      // from today forward, and a booking day can slip into the past before
-      // anyone gets a chance to confirm it there.
-      const dutyForThisDate = dutyForKey(key);
-      // The pro shop can only be visited on or after the actual booking day (14 days
-      // before this play date) — so the assigned duty person can't enter a real
-      // confirmed count before then, only once that day has arrived. Admins can
-      // still fix/clear a value any time, e.g. to correct a stray entry.
-      const bookDateForThis = new Date(d); bookDateForThis.setDate(bookDateForThis.getDate() - BOOKING_WINDOW_DAYS);
-      const bookingDayArrivedForThis = daysBetween(today, bookDateForThis) <= 0;
-      const canConfirmThis = !closure && (isAdmin || (meId && bookingDayArrivedForThis && dutyForThisDate && dutyForThisDate.id === meId));
-      const confirmedThis = data.confirmedTeeTimes[key];
-      const playLabelForThis = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
-      const bookDayRefForThis = daysBetween(today, bookDateForThis) === 0
-        ? 'today'
-        : `on ${DOW_NAMES[bookDateForThis.getDay()]}, ${MON_NAMES[bookDateForThis.getMonth()]} ${bookDateForThis.getDate()}`;
-      let confirmThisControl = '';
-      if(canConfirmThis){
-        confirmThisControl = `<div class="ts-confirm-row" style="margin-top:6px;">
-            <label>Confirmed:</label>
-            <select data-confirm-key="${key}" style="width:52px; font-family:'Inter'; font-size:13px; padding:5px 4px; border-radius:6px; border:1px solid var(--ivory-line);">
-              <option value="" ${!confirmedThis?'selected':''}>–</option>
-              ${[1,2,3].map(n => `<option value="${n}" ${confirmedThis===n?'selected':''}>${n}</option>`).join('')}
-            </select>
-            <span>tee time${confirmedThis===1?'':'s'} booked ${bookDayRefForThis} for ${playLabelForThis}</span>
-          </div>`;
-      } else if(typeof confirmedThis === 'number' && confirmedThis > 0){
-        confirmThisControl = `<div class="ts-duty-row-sub" style="margin-top:6px;">✅ ${confirmedThis} tee time${confirmedThis===1?'':'s'} confirmed for ${playLabelForThis}</div>`;
-      }
+      // The "Confirmed: [–]" input used to also be reachable from this card, as a
+      // fallback for when a booking day slipped into the past before someone got to
+      // the Booking Duty tab. Removed from here per request — entering confirmed
+      // tee times now happens only on the Booking Duty tab; this card's top-line
+      // badge still shows the confirmed count once it's entered there.
 
       const countBadge = capacity != null
         ? `${confirmed.length}/${capacity} confirmed${standby.length ? ` <span class="ts-standby-count">+${standby.length} standby</span>` : ''}`
@@ -2360,7 +2334,6 @@
           <div class="ts-players ${isOpen?'open':''}">
             ${namesHtml}
             ${teamsHtml}
-            ${confirmThisControl}
             ${isOpen ? adminAddControl : ''}
           </div>
         </div>`;
@@ -2974,7 +2947,7 @@
             <span>tee time${confirmed===1?'':'s'} booked ${dayRef} for ${playLabel}</span>
           </div>`;
       } else if(typeof confirmed === 'number' && confirmed > 0){
-        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} confirmed for ${playLabel}</div>`;
+        confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} booked ${dayRef} for ${playLabel}</div>`;
       }
 
       return `
