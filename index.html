@@ -570,6 +570,22 @@
     }catch(e){ /* best-effort */ }
   }
 
+  // Fires once, right when a confirmed-tee-times count is entered/changed and it
+  // turns out to be short of what's needed — this is the "we got fewer tee times
+  // than we need" moment. The app doesn't decide who drops out; it just alerts
+  // the admin so the group can work it out. standbyIds is who the app's own
+  // signup-order placeholder currently has sitting out, for context only.
+  async function notifyShortfall(dateKey, signedUpCount, confirmedTeeTimes, capacity, standbyIds){
+    try{
+      const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=notify_shortfall`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ dateKey, signedUpCount, confirmedTeeTimes, capacity, standbyIds })
+      });
+    }catch(e){ /* best-effort */ }
+  }
+
   // Score entry and round setup go through their own narrow backend actions
   // (instead of the whole-blob saveData()) because during a round several
   // scorekeepers may be saving around the same time — the backend
@@ -2218,9 +2234,14 @@
           : `<span class="ts-empty">No one signed up yet</span>`;
       }
 
+      // When there's a standby list, it's only ever because fewer tee times came
+      // back than were needed — the app doesn't decide who sits out, it just sorts
+      // by signup order as a placeholder (and alerts the admin, see notifyShortfall)
+      // so the group can actually decide. This note keeps that from reading as final.
       const namesHtml = capacity != null
         ? `<div class="ts-chip-group-label">Playing (${confirmed.length}/${capacity})</div>${chipsFor(sortByLastName(confirmed))}
-           ${standby.length ? `<div class="ts-chip-group-label standby">Standby (${standby.length})</div>${chipsFor(sortByLastName(standby))}` : ''}`
+           ${standby.length ? `<div class="ts-chip-group-label standby">Standby (${standby.length})</div>${chipsFor(sortByLastName(standby))}
+           <div class="ts-note" style="border-top:none; padding-top:0; margin-top:4px;">Sorted by signup order for now — who's actually sitting out for ${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()} hasn't been decided yet.</div>` : ''}`
         : chipsFor(sortByLastName(signedEntries));
 
       const rosterIdsSignedUp = signedEntries.map(e => e.id);
@@ -3446,11 +3467,18 @@
         const allowed = isAdmin || (meId && assigned && assigned.id === meId);
         if(!allowed) return;
         const n = parseInt(inp.value, 10);
-        const beforeConfirmedIds = splitConfirmedStandby(data.signups[key] || [], capacityFor(key)).confirmed.map(x => x.id);
+        const signedUpEntries = data.signups[key] || [];
+        const beforeConfirmedIds = splitConfirmedStandby(signedUpEntries, capacityFor(key)).confirmed.map(x => x.id);
         if(n > 0){ data.confirmedTeeTimes[key] = n; } else { delete data.confirmedTeeTimes[key]; }
-        const afterConfirmedIds = splitConfirmedStandby(data.signups[key] || [], capacityFor(key)).confirmed.map(x => x.id);
-        const newlyPromoted = afterConfirmedIds.filter(id => !beforeConfirmedIds.includes(id));
+        const newCapacity = capacityFor(key);
+        const { confirmed: afterConfirmed, standby: afterStandby } = splitConfirmedStandby(signedUpEntries, newCapacity);
+        const newlyPromoted = afterConfirmed.map(x => x.id).filter(id => !beforeConfirmedIds.includes(id));
         if(newlyPromoted.length) notifyPromoted(key, newlyPromoted);
+        // Fewer tee times came back than are needed for everyone signed up — alert
+        // the admin so the group can decide who sits out; the app isn't deciding.
+        if(newCapacity != null && afterStandby.length > 0){
+          notifyShortfall(key, signedUpEntries.length, n, newCapacity, afterStandby.map(x => x.id));
+        }
         await saveData();
         render();
       });
