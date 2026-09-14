@@ -231,7 +231,7 @@
     width:78px; font-size:27px; padding:13px 4px; border-radius:10px; border-width:1.5px;
     flex-shrink:0;
   }
-  .ts-score-input-lg::placeholder{ color:#c7c4b6; }
+  .ts-score-input-lg::placeholder{ color:#c7c4b6; font-style:italic; }
   input.ts-score-input-lg.ts-score-stroke{ border-color:var(--brass); background:#FBF3E4; }
   .ts-score-step{
     width:44px; height:44px; flex-shrink:0; font-size:21px; line-height:1; font-weight:600;
@@ -239,9 +239,11 @@
   }
   .ts-score-step:active{ background:var(--ivory-line); }
   /* Hole navigator on Live Scoring: big, thumb-friendly arrows either side of
-     a narrow hole picker. › doubles as Post — see holeByHoleHtml — so it's
-     styled like the primary action (same look as ts-accept-scores-btn) while
-     ‹ (pure navigation, never saves) stays plain. */
+     a narrow hole picker. Both arrows save a touched hole before moving (see
+     saveCurrentHoleIfDirty) — › is still styled as the primary/forward action
+     (same look as ts-accept-scores-btn) since it's the common "enter and
+     move on" direction, while ‹ (going back to check or fix something) stays
+     plain. */
   .ts-hbh-nav-btn{
     width:56px; height:56px; flex-shrink:0; font-size:28px; font-weight:700; line-height:1;
     border-radius:12px; border:1.5px solid var(--ivory-line); background:#fff; color:var(--ink);
@@ -1015,6 +1017,11 @@
   let unsavedHoleKeys = new Set();
   let pendingHolePosts = {}; // holeKey (see below) -> { dateKey, holeNum, entries } to retry
   function holePostKey(dateKey, holeNum){ return `${dateKey}::${String(holeNum)}`; }
+  // Collapsed by default — Live Scoring's own "Scorecards" section (below the
+  // score-entry boxes) showing every team's full hole 1-18 card, whatever's
+  // posted so far. Just a look-at-everyone's-progress convenience alongside
+  // score entry, so it starts closed to keep the entry boxes front and center.
+  let liveScorecardsOpen = false;
   let dutySort = 'date'; // 'date' | 'person'
   let dutyFilterId = ''; // '' = everyone, '__me__' = current identity, or a player id
   let scheduleFilterId = ''; // same idea, for the Upcoming Dates list
@@ -2313,11 +2320,15 @@
   }
 
   // Red tees play a different course setup and have their own stroke-index
-  // order from the scorecard — everything else shares one table. Matched by
-  // name rather than a fixed list, so it keeps working whatever the admin
-  // has actually named that tee (Red, Reds, Red Tees, Ladies Red, ...).
+  // order from the scorecard — everything else shares one table, INCLUDING a
+  // hybrid tee like "Gold/Red" that plays Red on only some holes (see
+  // HYBRID_TEE_HOLES below) — only the pure Red tee itself uses the Red
+  // stroke index. Matched by name rather than a fixed list, so it keeps
+  // working whatever the admin has actually named that tee (Red, Reds, Red
+  // Tees, Ladies Red, ...), but any "/" in the name means it's a hybrid
+  // combo tee, never the pure Red tee, regardless of which tees it combines.
   function isRedTee(tee){
-    return typeof tee === 'string' && /red/i.test(tee);
+    return typeof tee === 'string' && !tee.includes('/') && /red/i.test(tee);
   }
 
   function holeHandicapTableFor(tee){
@@ -4384,6 +4395,61 @@
     const visibleRoundPlayers = filteredToScope ? (rosterSource[scopeFilter] || []) : allRoundPlayers;
     const scopeWord = groupsMode ? 'Group' : 'Team';
 
+    // Betting-TEAM index for the viewer, independent of Play as Groups (myIndex
+    // above switches to physical group in that mode) — the "Scorecards" section
+    // below is always keyed by betting team, same as round.scores/teamCardsHtml,
+    // so "(mine)" needs the team they're actually betting on, not which physical
+    // group they're standing with.
+    const myTeamIndex = meId ? teamsInfo.teams.findIndex(team => team.some(p => p.id === meId)) : -1;
+
+    // Live Scoring's own "Scorecards" section — one full hole 1-18 card per
+    // team (viewer's own team first, labeled "(mine)"), showing whatever's
+    // actually been posted so far. Unlike teamCardsHtml above (Scoreboard tab,
+    // one series/6 holes at a time), this always shows all 18 in natural hole
+    // order, laid out like a real scorecard (Front 9 / Back 9 / Total), so
+    // checking in on every team's progress without leaving Live Scoring
+    // doesn't mean flipping between series. Collapsed by default (see
+    // liveScorecardsOpen) since it's a look-up, not part of entering scores.
+    const scorecardAllHoles = Array.from({ length: 18 }, (_, i) => i + 1);
+    const scorecardParsKnown = scorecardAllHoles.every(h => typeof data.holePars[String(h)] === 'number');
+    const scorecardParTotal = scorecardParsKnown ? scorecardAllHoles.reduce((sum, h) => sum + data.holePars[String(h)], 0) : null;
+    const teamOrderForCards = myTeamIndex !== -1
+      ? [myTeamIndex, ...teamsInfo.teams.map((_, ti) => ti).filter(ti => ti !== myTeamIndex)]
+      : teamsInfo.teams.map((_, ti) => ti);
+    const liveScorecardsHtml = teamOrderForCards.map(ti => {
+      const team = teamsInfo.teams[ti];
+      if(!team || !team.length) return '';
+      const rowsHtml = team.map(p => {
+        const playerScores = round.scores[p.id] || {};
+        let total = 0;
+        const cellsHtml = scorecardAllHoles.map(h => {
+          const v = playerScores[String(h)];
+          const played = typeof v === 'number';
+          if(played) total += v;
+          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
+          const strokeTitle = strokesHere > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokesHere} stroke${strokesHere===1?'':'s'} here"` : '';
+          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
+        }).join('');
+        const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
+        const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
+        return `<tr><td class="ts-score-name">${esc(p.name)}${teeNote}${soNote}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
+      }).join('');
+      return `
+        <div class="ts-scorecard-block">
+          <div class="ts-team-num">Team ${ti + 1}${ti === myTeamIndex ? ' <span class="ts-team-so">(mine)</span>' : ''}</div>
+          <div style="overflow-x:auto;">
+            <table class="ts-scorecard-table">
+              <thead>
+                <tr><th></th><th colspan="9">Front 9</th><th colspan="9">Back 9</th><th></th></tr>
+                <tr><th>Hole</th>${scorecardAllHoles.map(h => `<th>${h}</th>`).join('')}<th>Total</th></tr>
+                <tr class="ts-par-row"><th>Par</th>${scorecardAllHoles.map(h => `<th>${typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : ''}</th>`).join('')}<th>${scorecardParTotal !== null ? scorecardParTotal : ''}</th></tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('');
+
     const teamFilterHtml = showScopeFilter ? `
       <div style="margin-bottom:10px;">
         <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Showing
@@ -4434,14 +4500,13 @@
         </div>`;
     };
 
-    // The › arrow itself posts whatever's currently showing (draft edits plus
+    // Both › and ‹ save whatever's currently showing (draft edits plus
     // anything already on file) for everyone currently visible — see
-    // visibleRoundPlayers above — in one request, then moves on to the next
-    // hole; there's no separate Post button anymore. ‹ never posts — it's
-    // purely for looking back at an earlier hole (or a shotgun-start group
-    // jumping around) — so going back and re-entering something only takes
-    // effect once › is tapped again from there. On the last hole, › still
-    // posts but has nowhere further to advance to.
+    // visibleRoundPlayers above and saveCurrentHoleIfDirty — before actually
+    // moving, so a fix made after going back to an earlier hole (or jumping
+    // straight to one via the hole picker) is never silently lost; there's
+    // no separate Post button. On the last hole, › still saves but has
+    // nowhere further to advance to.
     const hbhUnsaved = unsavedHoleKeys.has(holePostKey(dateKey, hbhHole));
     const unsavedBannerHtml = hbhUnsaved ? `
       <div class="ts-unsaved-banner">⚠ This hole didn't save yet — it'll retry automatically. <button type="button" class="ts-unsaved-retry" data-retry-unsaved="1" style="color:var(--rust); font-size:12.5px;">Tap to retry now</button></div>` : '';
@@ -4482,6 +4547,15 @@
         <div class="ts-team-num" style="margin-top:8px;">Hole ${hbhHole}${hbhPar !== null ? ` <span class="ts-team-so">(par ${hbhPar})</span>` : ''} <span class="ts-team-so">— Series ${hbhSeriesIndex+1}, ${scoringHoleIndex+1} of ${flatHoles.length}</span></div>
         ${unsavedBannerHtml}
         ${hbhRowsHtml || '<p class="ts-empty">No players to show for this view.</p>'}
+      </div>
+      <div class="ts-teams-block" style="margin-top:16px;">
+        <div class="ts-section-title-row" style="margin:0 0 8px;">
+          <span class="ts-import-row-label" style="margin:0;">Scorecards</span>
+          <button type="button" class="ts-duty-sort-btn" id="ts-live-scorecards-toggle">${liveScorecardsOpen ? 'Collapse' : 'Expand'}</button>
+        </div>
+        ${liveScorecardsOpen ? `
+          <p style="margin:0 0 10px; font-size:12px; color:#6b6a5e;">Every team's card, hole 1 to 18, with whatever's been posted so far — updates as scores come in.</p>
+          ${liveScorecardsHtml || '<p class="ts-empty">No teams to show yet.</p>'}` : ''}
       </div>`;
 
     // One table per series — Team columns, "Holes completed" and "{game} vs
@@ -4643,7 +4717,7 @@
           ${standingsHtml}
         ` : `
           <h4 style="margin:16px 0 4px;">Live Scoring</h4>
-          <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Enter each player's score below, then tap › to post this hole and move to the next — the only place scores get entered, and nothing saves until you tap ›.</p>
+          <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Enter each player's score below, then tap › to move to the next hole (or ‹ to go back and check an earlier one) — either arrow saves what's on screen first, so a fix always sticks no matter which way you navigate away from it.</p>
           ${holeByHoleHtml}
         `}
       </div>
@@ -5540,21 +5614,19 @@
 
     // Hole-by-hole score boxes are draft-only — nothing here touches the
     // network or triggers a re-render on every keystroke, so typing stays
-    // smooth even on a weak course signal. A tap on an empty box fills it
-    // with par as a starting point (still just a draft), same as tapping the
-    // +/- steppers from empty; only the Post button below actually sends
-    // anything.
+    // smooth even on a weak course signal. Tapping into an empty box used to
+    // silently fill it with par right away — indistinguishable from a score
+    // someone actually typed in, since both then show as a plain dark number.
+    // That's gone: an empty box now stays empty (just the faint "par" hint)
+    // until you actually type a number or tap +/- (those still start from
+    // par when empty, since pressing one is a deliberate "enter a score"
+    // action, not just tapping to look at the box). Tapping into a box that
+    // already has a real value still selects it, so overwriting a mistake is
+    // one tap plus typing.
     document.querySelectorAll('.ts-hbh-score-input').forEach(input => {
       const playerId = input.getAttribute('data-hbh-score-player');
       input.addEventListener('focus', () => {
-        if(input.value.trim() === ''){
-          const parAttr = input.getAttribute('data-hbh-par');
-          if(parAttr !== ''){
-            input.value = parAttr;
-            input.select();
-            hbhDraft[playerId] = parAttr;
-          }
-        }
+        if(input.value.trim() !== '') input.select();
       });
       input.addEventListener('input', () => {
         hbhDraft[playerId] = input.value;
@@ -5908,21 +5980,63 @@
       });
     });
 
-    // ‹ is pure navigation — it never posts, so browsing back to look at (or
-    // fix) an earlier hole is always safe; nothing is sent until › is tapped
-    // again from there.
+    // Saves whatever's drafted for the hole currently on screen, if anything
+    // was actually touched — called before EVERY way of leaving a hole (‹,
+    // ›, or jumping via the hole picker), not just ›. It used to be only ›
+    // that posted, so going back to fix an earlier hole (or jumping straight
+    // to another one via the dropdown) silently discarded the fix unless you
+    // happened to tap › again from exactly that hole — which is exactly what
+    // made it unclear whether an edit had actually saved. Now however you
+    // leave a hole, a real edit is saved before you go anywhere. Does
+    // nothing at all (no network call) when nothing was touched, so quickly
+    // browsing back and forth to check earlier holes stays instant, same as
+    // before. Returns false (and stays put) if a bad entry needs fixing
+    // first, or if the save itself failed (it's queued for automatic retry
+    // either way — see postHoleScores/unsavedHoleKeys).
+    async function saveCurrentHoleIfDirty(){
+      if(!Object.keys(hbhDraft).length) return true; // nothing touched here — nothing to save
+      const nextBtn = document.getElementById('ts-hbh-next-hole');
+      if(!nextBtn || !nextBtn.hasAttribute('data-post-ids')) return true; // nobody to post for
+      const dateKeyAttr = nextBtn.getAttribute('data-post-date');
+      const holeNum = nextBtn.getAttribute('data-post-hole');
+      const ids = nextBtn.getAttribute('data-post-ids').split(',').filter(Boolean);
+
+      // Collect (and validate) every visible player's current value — a
+      // draft edit if there is one, otherwise whatever's already posted —
+      // before sending anything, so one bad entry doesn't post the rest of
+      // the hole halfway.
+      const entries = [];
+      for(const id of ids){
+        const input = document.getElementById(`ts-hbh-score-${id}`);
+        const raw = input ? input.value.trim() : (hbhDraft[id] !== undefined ? hbhDraft[id] : '');
+        if(raw === ''){ entries.push({ playerId: id, strokes: null }); continue; }
+        const n = parseInt(raw, 10);
+        if(isNaN(n) || n < 1 || n > 15){
+          await showMessage('Not a valid score', 'Enter a whole number of strokes between 1 and 15, or leave it blank.');
+          return false;
+        }
+        entries.push({ playerId: id, strokes: n });
+      }
+
+      const ok = await postHoleScores(dateKeyAttr, holeNum, entries);
+      hbhDraft = {};
+      return ok;
+    }
+
     const hbhPrevBtn = document.getElementById('ts-hbh-prev-hole');
     if(hbhPrevBtn){
-      hbhPrevBtn.addEventListener('click', () => {
-        scoringHoleIndex = Math.max(0, scoringHoleIndex - 1);
+      hbhPrevBtn.addEventListener('click', async () => {
+        hbhPrevBtn.disabled = true;
+        const ok = await saveCurrentHoleIfDirty();
+        if(ok) scoringHoleIndex = Math.max(0, scoringHoleIndex - 1);
         render();
       });
     }
     // › does double duty: when there's someone visible to post for (see
-    // data-post-ids, set in holeByHoleHtml), it posts the current hole —
+    // data-post-ids, set in holeByHoleHtml), it saves the current hole —
     // draft edits plus anything already on file — in one request, THEN
     // advances; there's no separate Post button anymore. With nobody to post
-    // for it's just plain navigation, same as ‹.
+    // for it's just plain navigation.
     const hbhNextBtn = document.getElementById('ts-hbh-next-hole');
     if(hbhNextBtn){
       hbhNextBtn.addEventListener('click', async () => {
@@ -5931,41 +6045,25 @@
           render();
           return;
         }
-        const dateKeyAttr = hbhNextBtn.getAttribute('data-post-date');
-        const holeNum = hbhNextBtn.getAttribute('data-post-hole');
-        const ids = hbhNextBtn.getAttribute('data-post-ids').split(',').filter(Boolean);
-
-        // Collect (and validate) every visible player's current value — a
-        // draft edit if there is one, otherwise whatever's already posted —
-        // before sending anything, so one bad entry doesn't post the rest of
-        // the hole halfway.
-        const entries = [];
-        for(const id of ids){
-          const input = document.getElementById(`ts-hbh-score-${id}`);
-          const raw = input ? input.value.trim() : (hbhDraft[id] !== undefined ? hbhDraft[id] : '');
-          if(raw === ''){ entries.push({ playerId: id, strokes: null }); continue; }
-          const n = parseInt(raw, 10);
-          if(isNaN(n) || n < 1 || n > 15){
-            await showMessage('Not a valid score', 'Enter a whole number of strokes between 1 and 15, or leave it blank, before posting.');
-            return;
-          }
-          entries.push({ playerId: id, strokes: n });
-        }
-
         hbhNextBtn.disabled = true;
-        const ok = await postHoleScores(dateKeyAttr, holeNum, entries);
-        hbhDraft = {};
-        // Advance on success — renderScoringPanel clamps scoringHoleIndex back
-        // to the last hole automatically if this was already the final one,
-        // so it's safe to just always increment here.
+        // renderScoringPanel clamps scoringHoleIndex back to the last hole
+        // automatically if this was already the final one, so it's safe to
+        // just always increment here on success.
+        const ok = await saveCurrentHoleIfDirty();
         if(ok) scoringHoleIndex = scoringHoleIndex + 1;
         render();
       });
     }
     const hbhHoleSelect = document.getElementById('ts-hbh-hole-select');
     if(hbhHoleSelect){
-      hbhHoleSelect.addEventListener('change', () => {
-        scoringHoleIndex = parseInt(hbhHoleSelect.value, 10) || 0;
+      hbhHoleSelect.addEventListener('change', async () => {
+        const target = parseInt(hbhHoleSelect.value, 10) || 0;
+        const ok = await saveCurrentHoleIfDirty();
+        // On success, jump to whichever hole was picked. On failure, re-render
+        // without changing scoringHoleIndex — this snaps the dropdown itself
+        // back to the hole you were actually still on, since a bad entry (or a
+        // failed save) means you haven't really left it yet.
+        if(ok) scoringHoleIndex = target;
         render();
       });
     }
@@ -5974,6 +6072,13 @@
       scoringTeamFilterSelect.addEventListener('change', () => {
         const val = scoringTeamFilterSelect.value;
         scoringTeamFilter = val === 'all' ? 'all' : parseInt(val, 10);
+        render();
+      });
+    }
+    const liveScorecardsToggleBtn = document.getElementById('ts-live-scorecards-toggle');
+    if(liveScorecardsToggleBtn){
+      liveScorecardsToggleBtn.addEventListener('click', () => {
+        liveScorecardsOpen = !liveScorecardsOpen;
         render();
       });
     }
