@@ -283,6 +283,17 @@
   .ts-scorecard-table tr.ts-par-row th{ color:var(--ink); font-weight:700; border-top:1px solid var(--ivory-line); }
   .ts-scorecard-table tr.ts-scorecard-hybrid-row td{ font-size:9.5px; color:#8b8a7c; font-style:italic; padding-top:0; border-bottom:1px dashed var(--ivory-line); }
   .ts-scorecard-table tr.ts-scorecard-hybrid-row td:first-child{ font-family:'Inter',sans-serif; }
+  /* Keep the name column visible while scrolling horizontally through 18
+     holes — the table's own background must be opaque (matching the white
+     card it sits in) so scrolled-past hole columns don't show through
+     underneath it. */
+  .ts-scorecard-table th:first-child, .ts-scorecard-table td:first-child{
+    position:sticky; left:0; background:#fff; z-index:1;
+    box-shadow:2px 0 4px -2px rgba(0,0,0,0.18);
+  }
+  @media print{
+    .ts-scorecard-table th:first-child, .ts-scorecard-table td:first-child{ position:static; box-shadow:none; }
+  }
   .ts-scorecard-print-wrap{ margin-top:20px; padding-top:14px; border-top:1px dashed var(--ivory-line); }
   .ts-scorecard-block{ margin-top:16px; }
   @media print{
@@ -824,6 +835,39 @@
     }catch(e){ /* best-effort */ }
   }
 
+  // Offered right after "Save updated handicaps" actually changes something —
+  // asks whether to email the group now (with the Handicaps by Tee PDF
+  // attached), and if so has the backend do the sending (it's the only side
+  // that can send mail). The backend enforces "don't send unless there's been
+  // an update" on its own via sendHandicapUpdateEmailIfNeeded_, so declining
+  // here just leaves it for the twice-monthly automatic email instead.
+  async function maybeOfferHandicapUpdateEmail(){
+    if(!isAdmin) return;
+    const ok = await askConfirm(
+      'Send handicap update email?',
+      'Send the handicap update email to the whole group now, with the Handicaps by Tee PDF attached?',
+      'Yes, send now',
+      'Not yet'
+    );
+    if(!ok) return;
+    try{
+      const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=send_handicap_email`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({})
+      });
+      const parsed = JSON.parse(await res.text());
+      if(parsed && parsed.error){
+        await showMessage("Couldn't send", parsed.error);
+      } else if(parsed && parsed.sent === false){
+        await showMessage('Not sent', parsed.reason || "The email wasn't sent.");
+      }
+    }catch(e){
+      await showMessage("Couldn't send", "Something went wrong reaching the server. It'll still go out automatically on the 1st or 15th, or try again from here.");
+    }
+  }
+
   // Records a player-driven change (signup, drop-out, duty swap) into
   // data.activityLog, so the nightly digest (sendDailyActivityDigest in the
   // backend) can email the admin a list of what happened the day before. Just
@@ -1022,6 +1066,28 @@
   // posted so far. Just a look-at-everyone's-progress convenience alongside
   // score entry, so it starts closed to keep the entry boxes front and center.
   let liveScorecardsOpen = false;
+  // Admin > Handicaps > Player handicaps: batch-edit draft. Handicap Index
+  // fields (and the effective-date picker) used to save on every single
+  // change, which meant updating a whole roster's worth of players in a row
+  // fired one full save per field — each one re-checking the server for
+  // conflicts, so a rapid string of edits could race and throw up a
+  // "this has changed elsewhere" warning even though it was only this same
+  // admin's own prior field finishing its save. Now every edit here just
+  // updates this in-memory draft and nothing reaches the backend until
+  // "Save updated handicaps" is tapped, which commits the whole batch in one
+  // save. null means no draft is in progress yet; the panel starts one
+  // (seeded from the saved data) the first time it renders.
+  let handicapDraft = null; // { effectiveDate: string, values: {playerId: rawString} }
+  function handicapDraftIsDirty(){
+    if(!handicapDraft) return false;
+    if((handicapDraft.effectiveDate || '') !== (data.handicapEffectiveDate || '')) return true;
+    for(const pid in handicapDraft.values){
+      const player = data.roster.find(p => p.id === pid);
+      const currentVal = player && typeof player.handicapIndex === 'number' ? String(player.handicapIndex) : '';
+      if(handicapDraft.values[pid].trim() !== currentVal) return true;
+    }
+    return false;
+  }
   let dutySort = 'date'; // 'date' | 'person'
   let dutyFilterId = ''; // '' = everyone, '__me__' = current identity, or a player id
   let scheduleFilterId = ''; // same idea, for the Upcoming Dates list
@@ -1824,10 +1890,10 @@
           const holesNote = entry.holes !== '18' ? ` (${HOLES_LABEL[entry.holes]})` : '';
           // Same tee/course-handicap resolution and display convention used
           // everywhere else in the app (entry's own tee for this date,
-          // falling back to the player's default; "<Tee> tee, HC <n>").
+          // falling back to the player's default; "<Tee> tee, CH <n>").
           const tee = entry.tee || p.defaultTee || null;
           const ch = computedCourseHandicap(p.handicapIndex, tee);
-          const teeHcNote = tee ? ` — ${tee} tee${typeof ch === 'number' ? `, HC ${ch}` : ''}` : (typeof ch === 'number' ? ` — HC ${ch}` : '');
+          const teeHcNote = tee ? ` — ${tee} tee${typeof ch === 'number' ? `, CH ${ch}` : ''}` : (typeof ch === 'number' ? ` — CH ${ch}` : '');
           return `- ${p.name}${teeHcNote}${holesNote}`;
         }).join('\n');
         rows.push({
@@ -2031,7 +2097,7 @@
   // Recomputes tee/courseHandicap/strokesOff fresh for a player about to land on
   // a team — heals a swap-in (or an already-saved team, via normalizeTeams() above)
   // from an older "Not in the bet" entry that predates those fields being tracked
-  // there (shows up as undefined HC/S.O. otherwise).
+  // there (shows up as undefined CH/S.O. otherwise).
   function recomputedForTeamSlot(dateKey, playerLite){
     const rosterPlayer = data.roster.find(r => r.id === playerLite.id);
     const tee = playerLite.tee || (rosterPlayer && rosterPlayer.defaultTee) || null;
@@ -2482,7 +2548,7 @@
   // scorecard's running-total row below, so all three always agree.
   // Which of a player's two handicap numbers the bet's stroke allocation is
   // based on — S.O. (strokes off the lowest handicap in the field, the
-  // default) or HC (full course handicap, no relative adjustment). Picked in
+  // default) or CH (full course handicap, no relative adjustment). Picked in
   // Round setup per round.
   function betStrokesFor(p, basis){
     return basis === 'hc' ? p.courseHandicap : p.strokesOff;
@@ -3716,13 +3782,13 @@
           ${generatedTeams.teams.map((team, i) => `
             <div class="ts-team-row">
               <span class="ts-team-num">Team ${i+1}</span>
-              ${team.map(p => {   const teeLabel = p.tee ? `${esc(p.tee)} tee ` : '';   const hcNote = typeof p.courseHandicap === 'number' ? ` <span class="ts-team-so">(${teeLabel}HC ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''})</span>` : '';   return `<span class="name-chip">${esc(p.name)}${hcNote}</span>`; }).join('')}
+              ${team.map(p => {   const teeLabel = p.tee ? `${esc(p.tee)} tee ` : '';   const hcNote = typeof p.courseHandicap === 'number' ? ` <span class="ts-team-so">(${teeLabel}CH ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''})</span>` : '';   return `<span class="name-chip">${esc(p.name)}${hcNote}</span>`; }).join('')}
             </div>`).join('')}
           ${generatedTeams.notInBet && generatedTeams.notInBet.length ? `
             <div class="ts-team-row">
               <span class="ts-team-num" style="color:var(--rust);">Not in the bet</span>
               ${generatedTeams.notInBet.map(p => {
-                const teeLabel = p.tee ? `${esc(p.tee)} tee ` : ''; const hcNote = typeof p.courseHandicap === 'number' ? ` — ${teeLabel}HC ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''}` : '';
+                const teeLabel = p.tee ? `${esc(p.tee)} tee ` : ''; const hcNote = typeof p.courseHandicap === 'number' ? ` — ${teeLabel}CH ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''}` : '';
                 return `<span class="name-chip">${esc(p.name)} <span class="ts-team-so">(${esc(p.reason)}${hcNote})</span></span>`;
               }).join('')}
             </div>` : ''}
@@ -3737,7 +3803,7 @@
       // badge still shows the confirmed count once it's entered there.
 
       const countBadge = capacity != null
-        ? `${confirmed.length} confirmed${standby.length ? ` <span class="ts-standby-count">+${standby.length} standby</span>` : ''}`
+        ? `${confirmed.length} player${confirmed.length===1?'':'s'} confirmed${standby.length ? ` <span class="ts-standby-count">+${standby.length} standby</span>` : ''}`
         : `${count} signed up`;
       const teeTimesBadge = confirmedCount
         ? `${confirmedCount} tee time${confirmedCount===1?'':'s'} confirmed`
@@ -4065,17 +4131,32 @@
         <span style="width:110px; text-align:right; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
       </div>`;
 
+    // Handicap Index edits and the effective date are batched into handicapDraft
+    // instead of saving on every keystroke — editing several players' handicaps
+    // in a row used to fire a separate saveData() per field, and those overlapping
+    // save/reload round-trips could race and throw a spurious "this has changed
+    // elsewhere" warning against each other. Now nothing hits the server until
+    // "Save updated handicaps" is clicked, which does exactly one save.
+    if(!handicapDraft){
+      handicapDraft = { effectiveDate: data.handicapEffectiveDate || '', values: {} };
+    }
+
+    const draftIsDirty = handicapDraftIsDirty();
+
     const playerRows = sortedRoster().map(p => {
-      const courseHcp = computedCourseHandicap(p.handicapIndex, p.defaultTee);
+      const draftVal = handicapDraft.values[p.id];
+      const inputVal = draftVal !== undefined ? draftVal : (typeof p.handicapIndex === 'number' ? p.handicapIndex : '');
+      const previewIndex = draftVal !== undefined ? (draftVal.trim() === '' ? null : parseFloat(draftVal)) : p.handicapIndex;
+      const courseHcp = (typeof previewIndex === 'number' && !isNaN(previewIndex)) ? computedCourseHandicap(previewIndex, p.defaultTee) : null;
       return `
         <div class="ts-roster-row" data-hpid="${p.id}">
           <span style="flex:1; min-width:170px;">${esc(p.name)}</span>
-          <input type="number" step="0.1" min="-10" max="54" data-handicap-index="${p.id}" value="${typeof p.handicapIndex === 'number' ? p.handicapIndex : ''}" placeholder="—" style="width:60px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+          <input type="number" step="0.1" min="-10" max="54" data-handicap-index="${p.id}" value="${inputVal}" placeholder="—" style="width:60px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
           <select data-default-tee="${p.id}" style="width:140px; font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
             <option value="">No default tee</option>
             ${data.teeOptions.map(tee => `<option value="${esc(tee)}" ${p.defaultTee===tee?'selected':''}>${esc(tee)}</option>`).join('')}
           </select>
-          <span style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
+          <span data-hpid-ch="${p.id}" style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
         </div>`;
     }).join('');
 
@@ -4098,13 +4179,18 @@
         </div>
         <div class="ts-import-row">
           <span class="ts-import-row-label">Player handicaps</span>
-          <p style="margin:0 0 10px;">Handicap Index (HI) updates about twice a month — paste a fresh update via Import data snapshot on the Data tab, or edit an index by hand right here. Editing HI recalculates that player's Course Handicap at every tee automatically (using Rating, Slope, and the Par above). Changing someone's Tees here asks first, since it resets their default tee.</p>
+          <p style="margin:0 0 10px;">Handicap Index (HI) updates about twice a month — paste a fresh update via Import data snapshot on the Data tab, or edit an index by hand right here. Editing HI recalculates that player's Course Handicap at every tee automatically (using Rating, Slope, and the Par above). Nothing is saved until you click "Save updated handicaps" below. Changing someone's Tees here asks first and saves right away, since it resets their default tee and isn't part of a handicap update.</p>
           <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin:0 0 12px;">Handicaps effective as of
-            <input type="date" data-handicap-effective-date value="${data.handicapEffectiveDate || ''}" style="font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
+            <input type="date" data-handicap-effective-date value="${handicapDraft.effectiveDate}" style="font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
           </label>
           <div style="overflow-x:auto;">
             ${tableHeaderHtml}
             ${playerRows || '<p class="ts-empty">No players yet.</p>'}
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--ivory-line);">
+            <button type="button" class="ts-accept-scores-btn" id="ts-save-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Save updated handicaps</button>
+            <button type="button" class="ts-manage-btn" id="ts-discard-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Discard changes</button>
+            <span id="ts-handicap-unsaved-note" style="font-size:12.5px; color:#6b6a5e; ${draftIsDirty ? '' : 'display:none;'}">Unsaved changes</span>
           </div>
         </div>
       </div>
@@ -4234,7 +4320,7 @@
     // dropdown is the one still-live control here; team membership itself only
     // changes in "Swap players between teams" below.
     const teamRosterRowHtml = (p, isNotPlaying) => {
-      const hcNote = typeof p.courseHandicap === 'number' ? `HC ${p.courseHandicap}` : 'HC —';
+      const hcNote = typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : 'CH —';
       const soNote = typeof p.strokesOff === 'number' ? `, S.O. ${p.strokesOff}` : '';
       const reasonNote = isNotPlaying && p.reason ? ` <span class="ts-team-so">(${esc(p.reason)})</span>` : '';
       return `
@@ -4485,7 +4571,7 @@
         <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
             <div style="font-weight:600; font-size:15px;">${esc(p.name)}</div>
-            <div style="font-size:11.5px; color:#8b8a7c;">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `HC ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · gets a stroke here' : ''}${hybridNote}</div>
+            <div style="font-size:11.5px; color:#8b8a7c;">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · gets a stroke here' : ''}${hybridNote}</div>
           </div>
           <div style="display:flex; align-items:center; gap:6px;">
             <button type="button" class="ts-score-step" data-step-for="${inputId}" data-step-dir="-1" data-hbh-score-player="${p.id}" data-hbh-par="${hbhPar !== null ? hbhPar : ''}">−</button>
@@ -4663,7 +4749,7 @@
               <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Handicap basis
                 <select id="ts-round-handicap-basis" style="margin-left:6px; font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
                   <option value="so" ${round.handicapBasis==='so'?'selected':''}>S.O. (strokes off)</option>
-                  <option value="hc" ${round.handicapBasis==='hc'?'selected':''}>HC (full course handicap)</option>
+                  <option value="hc" ${round.handicapBasis==='hc'?'selected':''}>CH (full course handicap)</option>
                 </select>
               </label>
             </div>
@@ -4700,7 +4786,7 @@
             <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">${round.game === '1ball'
               ? '1-ball: each hole, only the team\'s single lowest net score counts, compared to that hole\'s par.'
               : '2-ball: each hole, the team\'s two lowest net scores count, compared to twice that hole\'s par.'
-            } Needs exact hole handicaps (see above) to allocate strokes hole by hole. Handicap basis: ${round.handicapBasis === 'hc' ? 'strokes are allocated off each player\'s full course handicap (HC).' : 'strokes are allocated off each player\'s strokes-off-the-lowest-handicap-in-the-field (S.O.).'}</p>
+            } Needs exact hole handicaps (see above) to allocate strokes hole by hole. Handicap basis: ${round.handicapBasis === 'hc' ? 'strokes are allocated off each player\'s full course handicap (CH).' : 'strokes are allocated off each player\'s strokes-off-the-lowest-handicap-in-the-field (S.O.).'}</p>
             <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">With this starting hole, ${groups.map((holes, si) => `Series ${si+1} is holes ${holes[0]}–${holes[holes.length-1]}`).join(', ')}. On a shotgun start, holes don't need to be entered in this order — jump straight to whichever hole your group just finished in Live Scoring, in any order, and come back to fill in the rest later.</p>
           </div>
         ` : scoringViewMode === 'season' ? `
@@ -5687,33 +5773,95 @@
     wireHcpCalculator('ts-hcp-calc-index', 'ts-hcp-calc-tee', 'ts-hcp-calc-result');
     wireHcpCalculator('ts-hcp-calc-index-pub', 'ts-hcp-calc-tee-pub', 'ts-hcp-calc-result-pub');
 
+    // Handicap Index inputs and the effective date only ever touch handicapDraft
+    // here — see the comment in renderHandicapsPanel for why nothing saves until
+    // "Save updated handicaps" is clicked. Updates are applied straight to the DOM
+    // (the course-handicap preview, and the Save/Discard buttons' enabled state)
+    // instead of calling render(), so typing across several fields in a row
+    // doesn't lose focus.
+    const refreshHandicapDraftControls = () => {
+      const dirty = handicapDraftIsDirty();
+      const saveBtn = document.getElementById('ts-save-handicaps-btn');
+      const discardBtn = document.getElementById('ts-discard-handicaps-btn');
+      const note = document.getElementById('ts-handicap-unsaved-note');
+      if(saveBtn) saveBtn.disabled = !dirty;
+      if(discardBtn) discardBtn.disabled = !dirty;
+      if(note) note.style.display = dirty ? '' : 'none';
+    };
+
     document.querySelectorAll('[data-handicap-index]').forEach(inp => {
-      inp.addEventListener('change', async () => {
-        if(!isAdmin) return;
+      inp.addEventListener('input', () => {
+        if(!isAdmin || !handicapDraft) return;
         const pid = inp.getAttribute('data-handicap-index');
+        handicapDraft.values[pid] = inp.value;
         const player = data.roster.find(p => p.id === pid);
-        if(!player) return;
         const raw = inp.value.trim();
-        if(raw === ''){
-          delete player.handicapIndex;
-        } else {
-          const val = parseFloat(raw);
-          if(isNaN(val) || val < -10 || val > 54){ await showMessage('Not valid', 'Handicap Index has to be a number, typically between -10 and 54.'); render(); return; }
-          player.handicapIndex = Math.round(val * 10) / 10;
-          recomputeCourseHandicapsForPlayer(player);
-        }
-        data.handicapUpdatedAt = Date.now();
-        await saveData();
-        render();
+        const previewIndex = raw === '' ? null : parseFloat(raw);
+        const courseHcp = (player && typeof previewIndex === 'number' && !isNaN(previewIndex)) ? computedCourseHandicap(previewIndex, player.defaultTee) : null;
+        const chSpan = document.querySelector(`[data-hpid-ch="${pid}"]`);
+        if(chSpan) chSpan.textContent = courseHcp !== null ? courseHcp : '—';
+        refreshHandicapDraftControls();
       });
     });
 
     const effDateInput = document.querySelector('[data-handicap-effective-date]');
     if(effDateInput){
-      effDateInput.addEventListener('change', async () => {
-        if(!isAdmin) return;
-        data.handicapEffectiveDate = effDateInput.value || null;
+      effDateInput.addEventListener('input', () => {
+        if(!isAdmin || !handicapDraft) return;
+        handicapDraft.effectiveDate = effDateInput.value || '';
+        refreshHandicapDraftControls();
+      });
+    }
+
+    const saveHandicapsBtn = document.getElementById('ts-save-handicaps-btn');
+    if(saveHandicapsBtn){
+      saveHandicapsBtn.addEventListener('click', async () => {
+        if(!isAdmin || !handicapDraft) return;
+        // Validate everything before touching data, so one bad entry doesn't
+        // apply the rest of the batch halfway.
+        for(const pid in handicapDraft.values){
+          const raw = handicapDraft.values[pid].trim();
+          if(raw === '') continue;
+          const val = parseFloat(raw);
+          if(isNaN(val) || val < -10 || val > 54){
+            const player = data.roster.find(p => p.id === pid);
+            await showMessage('Not valid', `${player ? player.name + "'s" : "That"} Handicap Index has to be a number, typically between -10 and 54.`);
+            return;
+          }
+        }
+        let anyChanged = false;
+        for(const pid in handicapDraft.values){
+          const player = data.roster.find(p => p.id === pid);
+          if(!player) continue;
+          const raw = handicapDraft.values[pid].trim();
+          const currentVal = typeof player.handicapIndex === 'number' ? String(player.handicapIndex) : '';
+          if(raw === currentVal) continue;
+          anyChanged = true;
+          if(raw === ''){
+            delete player.handicapIndex;
+          } else {
+            player.handicapIndex = Math.round(parseFloat(raw) * 10) / 10;
+          }
+          recomputeCourseHandicapsForPlayer(player);
+        }
+        const newEffDate = handicapDraft.effectiveDate || null;
+        if((data.handicapEffectiveDate || null) !== newEffDate){
+          data.handicapEffectiveDate = newEffDate;
+          anyChanged = true;
+        }
+        if(!anyChanged){ handicapDraft = null; render(); return; }
+        data.handicapUpdatedAt = Date.now();
         await saveData();
+        handicapDraft = null;
+        render();
+        await maybeOfferHandicapUpdateEmail();
+      });
+    }
+
+    const discardHandicapsBtn = document.getElementById('ts-discard-handicaps-btn');
+    if(discardHandicapsBtn){
+      discardHandicapsBtn.addEventListener('click', () => {
+        handicapDraft = null;
         render();
       });
     }
