@@ -835,21 +835,88 @@
     }catch(e){ /* best-effort */ }
   }
 
+  // Asks the backend to build (but not send) the handicap update email —
+  // exact same subject/body/PDF the real send would use (same builder
+  // functions on the backend), so what's previewed here is exactly what
+  // would go out. Never touches data.lastHandicapEmailSentAt.
+  async function fetchHandicapEmailPreview(){
+    const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=preview_handicap_email`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({})
+    });
+    return JSON.parse(await res.text());
+  }
+
+  // Shows the previewed subject/body (rendered, not escaped — it's our own
+  // server-built HTML) plus a download link for the PDF attachment, built
+  // client-side from the base64 the backend returned (no separate request,
+  // and nothing saved to disk until the admin chooses to). With
+  // opts.allowSend, doubles as the send confirmation itself — "Send now"
+  // resolves true — so seeing the actual content and deciding to send it are
+  // the same step instead of a blind yes/no prompt.
+  function showHandicapEmailPreviewModal(preview, opts){
+    const allowSend = !!(opts && opts.allowSend);
+    return new Promise(resolve => {
+      const modalRoot = document.getElementById('ts-modal-root');
+      const pdfLinkHtml = preview.pdfBase64
+        ? `<p style="margin:0 0 10px;"><a href="data:application/pdf;base64,${preview.pdfBase64}" download="${esc(preview.pdfFilename || 'Handicaps-by-Tee.pdf')}" style="color:var(--fairway); font-weight:600;">⬇ Download the Handicaps by Tee PDF</a></p>`
+        : '';
+      modalRoot.innerHTML = `
+        <div class="ts-modal-overlay" id="ts-modal-overlay">
+          <div class="ts-modal-box ts-modal-box-wide ts-modal-box-tall">
+            <h4>${allowSend ? 'Send handicap update email?' : 'Handicap update email preview'}</h4>
+            <p style="margin:0 0 4px;">To: whole roster${typeof preview.recipientCount === 'number' ? ` (${preview.recipientCount} email${preview.recipientCount===1?'':'s'}, BCC'd)` : ''}</p>
+            <p style="margin:0 0 10px;"><b>Subject:</b> ${esc(preview.subject || '')}</p>
+            ${pdfLinkHtml}
+            <div class="ts-preview-scroll"><div class="ts-preview-body" style="padding:12px 14px;">${preview.html || ''}</div></div>
+            <div class="ts-modal-actions">
+              <button class="ts-modal-cancel" id="ts-modal-cancel">${allowSend ? 'Not yet' : 'Close'}</button>
+              ${allowSend ? '<button class="ts-modal-ok" id="ts-modal-ok">Send now</button>' : ''}
+            </div>
+          </div>
+        </div>`;
+      const cleanup = (val) => { modalRoot.innerHTML = ''; resolve(val); };
+      if(allowSend) document.getElementById('ts-modal-ok').onclick = () => cleanup(true);
+      document.getElementById('ts-modal-cancel').onclick = () => cleanup(false);
+      document.getElementById('ts-modal-overlay').addEventListener('click', (e) => {
+        if(e.target.id === 'ts-modal-overlay') cleanup(false);
+      });
+    });
+  }
+
+  // Look-only version, for the standalone "Preview handicap email" button —
+  // available any time (not just right after a save), since the twice-monthly
+  // automatic send otherwise has no way to check its content ahead of time.
+  async function previewHandicapEmailStandalone(){
+    let preview;
+    try{ preview = await fetchHandicapEmailPreview(); }
+    catch(e){ preview = null; }
+    if(!preview || preview.error){
+      await showMessage("Couldn't load preview", (preview && preview.error) || 'Something went wrong reaching the server — try again in a moment.');
+      return;
+    }
+    await showHandicapEmailPreviewModal(preview, { allowSend: false });
+  }
+
   // Offered right after "Save updated handicaps" actually changes something —
-  // asks whether to email the group now (with the Handicaps by Tee PDF
-  // attached), and if so has the backend do the sending (it's the only side
-  // that can send mail). The backend enforces "don't send unless there's been
-  // an update" on its own via sendHandicapUpdateEmailIfNeeded_, so declining
-  // here just leaves it for the twice-monthly automatic email instead.
+  // shows the same preview as above, but "Send now" actually sends it (the
+  // backend is the only side that can send mail). The backend enforces
+  // "don't send unless there's been an update" on its own via
+  // sendHandicapUpdateEmailIfNeeded_, so declining here just leaves it for
+  // the twice-monthly automatic email instead.
   async function maybeOfferHandicapUpdateEmail(){
     if(!isAdmin) return;
-    const ok = await askConfirm(
-      'Send handicap update email?',
-      'Send the handicap update email to the whole group now, with the Handicaps by Tee PDF attached?',
-      'Yes, send now',
-      'Not yet'
-    );
-    if(!ok) return;
+    let preview;
+    try{ preview = await fetchHandicapEmailPreview(); }
+    catch(e){ preview = null; }
+    if(!preview || preview.error){
+      await showMessage("Couldn't load preview", (preview && preview.error) || "Something went wrong reaching the server. It'll still go out automatically on the 1st or 15th, or try Preview handicap email again later.");
+      return;
+    }
+    const send = await showHandicapEmailPreviewModal(preview, { allowSend: true });
+    if(!send) return;
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=send_handicap_email`;
       const res = await fetch(url, {
@@ -2327,12 +2394,46 @@
     return (typeof n === 'number' && n > 0) ? n : null;
   }
 
+  // The tee-times override + a read-only "N players confirmed" readout,
+  // shown side by side so an admin can compare the two before deciding
+  // whether to lower the count — e.g. 3 tee times confirmed, but only 7
+  // players actually confirmed today, so 2 is enough. Lives in Round setup
+  // (Set up & Bets), right alongside the round's other settings, rather than
+  // buried under Teams below. Always about the upcoming play date specifically
+  // (the one "Generate/Regenerate teams" below applies to) — regardless of
+  // which round's setup happens to be in view above it, same as that button;
+  // the date is spelled out in the label so that's never ambiguous. "Players
+  // confirmed" is informational only: it reads capacityFor/the real
+  // confirmedTeeTimes, never the override, so it always reflects the actual
+  // signup/standby cutoff regardless of what's typed into the field above it.
+  function teeTimesOverrideRowHtml(){
+    const nextKey = nextPlayDateKey();
+    if(!nextKey) return '';
+    const nd = new Date(nextKey + 'T00:00:00');
+    const nextDateLabel = isNaN(nd.getTime()) ? '' : `${MON_NAMES[nd.getMonth()]} ${nd.getDate()}`;
+    const confirmedCount = data.confirmedTeeTimes[nextKey];
+    const overrideCount = data.teamsTeeTimesOverride ? data.teamsTeeTimesOverride[nextKey] : undefined;
+    const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || '');
+    const capacity = capacityFor(nextKey);
+    const entries = data.signups[nextKey] || [];
+    const { confirmed } = splitConfirmedStandby(entries, capacity);
+    const confirmedPlayers = confirmed.length;
+    return `
+      <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Number of tee times${nextDateLabel ? ` — ${esc(nextDateLabel)}` : ''}
+        <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:50px; margin-left:6px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--ivory-line);">
+      </label>
+      <span style="font-size:12px; color:#6b6a5e;">${confirmedPlayers} player${confirmedPlayers===1?'':'s'} confirmed</span>`;
+  }
+
   // "Generate suggested teams now" — the one control for creating a new date's
   // teams at all (Swap players below only rearranges an existing set). Lives
   // in Scoring & Bets, Set up & Bets. Greys itself out once the upcoming
   // round already has teams, since from that point on Swap players is where
   // changes belong — regenerating here would silently discard them.
-  function generateTeamsBlockHtml(){
+  // includeTeeTimesField is only true when there's no Round setup section to
+  // put teeTimesOverrideRowHtml in instead — the very first time any date's
+  // teams are ever generated, before any round exists to attach it to.
+  function generateTeamsBlockHtml(includeTeeTimesField){
     const nextKey = nextPlayDateKey();
     let nextDateLabel = '';
     if(nextKey){
@@ -2340,20 +2441,14 @@
       if(!isNaN(nd.getTime())) nextDateLabel = `${MON_NAMES[nd.getMonth()]} ${nd.getDate()}`;
     }
     const alreadyGenerated = nextKey ? !!data.teams[nextKey] : false;
-    const confirmedCount = nextKey ? data.confirmedTeeTimes[nextKey] : null;
-    const overrideCount = nextKey && data.teamsTeeTimesOverride ? data.teamsTeeTimesOverride[nextKey] : undefined;
-    const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || '');
     return `
       <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
         <span class="ts-import-row-label">Generate teams${nextDateLabel ? ` — ${esc(nextDateLabel)}` : ''}</span>
         ${nextKey ? `
           <p style="margin:0 0 10px;">${alreadyGenerated
-            ? 'Teams have already been generated for this round — make any changes in Swap players below, or change the tee-time count and regenerate to start over.'
+            ? 'Teams have already been generated for this round — make any changes in Swap players below, or change the tee-time count above and regenerate to start over.'
             : 'Auto-splits everyone signed up for the upcoming round into teams by handicap. Fine-tune the result afterward in Swap players below.'}</p>
-          <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin:0 0 12px;">Number of tee times
-            <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:56px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
-          </label>
-          <p style="margin:-6px 0 12px; font-size:12px; color:#6b6a5e;">Defaults to the confirmed count (${confirmedCount ? `${confirmedCount} tee time${confirmedCount===1?'':'s'}` : 'not set yet'}) — lower it here if players have dropped out and fewer teams are needed today. Only affects how teams are split, not the signup/standby cutoff.</p>
+          ${includeTeeTimesField ? `<div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin:0 0 12px;">${teeTimesOverrideRowHtml()}</div>` : ''}
           <button type="button" class="ts-accept-scores-btn" id="ts-generate-teams-btn">${alreadyGenerated ? 'Regenerate teams' : 'Generate suggested teams now'}</button>
         ` : `<p class="ts-empty">No upcoming play date yet.</p>`}
       </div>`;
@@ -4209,10 +4304,14 @@
             ${tableHeaderHtml}
             ${playerRows || '<p class="ts-empty">No players yet.</p>'}
           </div>
-          <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--ivory-line);">
+          <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--ivory-line); flex-wrap:wrap;">
             <button type="button" class="ts-accept-scores-btn" id="ts-save-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Save updated handicaps</button>
             <button type="button" class="ts-manage-btn" id="ts-discard-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Discard changes</button>
             <span id="ts-handicap-unsaved-note" style="font-size:12.5px; color:#6b6a5e; ${draftIsDirty ? '' : 'display:none;'}">Unsaved changes</span>
+          </div>
+          <div style="margin-top:10px;">
+            <button type="button" class="ts-manage-btn" id="ts-preview-handicap-email-btn">Preview handicap email</button>
+            <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">See exactly what the group would get — subject, body, and the Handicaps by Tee PDF — before it goes out, whether that's from the button after Save or the automatic send on the 1st/15th.</p>
           </div>
         </div>
       </div>
@@ -4309,7 +4408,7 @@
       el.innerHTML = `
         <div class="ts-roster-panel">
           <h4 style="margin:0 0 4px;">Set up</h4>
-          ${generateTeamsBlockHtml()}
+          ${generateTeamsBlockHtml(true)}
           <p class="ts-empty" style="margin-top:14px;">Once teams are generated, come back here to review them, swap players, and start scoring.</p>
         </div>`;
       return;
@@ -4774,6 +4873,7 @@
                   <option value="hc" ${round.handicapBasis==='hc'?'selected':''}>CH (full course handicap)</option>
                 </select>
               </label>
+              ${teeTimesOverrideRowHtml()}
             </div>
           </div>
 
@@ -5925,6 +6025,11 @@
         handicapDraft = null;
         render();
       });
+    }
+
+    const previewHandicapEmailBtn = document.getElementById('ts-preview-handicap-email-btn');
+    if(previewHandicapEmailBtn){
+      previewHandicapEmailBtn.addEventListener('click', previewHandicapEmailStandalone);
     }
 
     document.querySelectorAll('[data-hole-handicap]').forEach(inp => {
