@@ -999,7 +999,7 @@
     }catch(e){ /* best-effort */ }
   }
 
-  let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [] };
+  let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [] };
   // Set when the very first load couldn't reach the backend at all (network hiccup,
   // or the fetch timing out per FETCH_TIMEOUT_MS above) — distinct from a
   // successful load that happens to find an empty roster, so init() can show a
@@ -1278,6 +1278,13 @@
     if(!data.closures) data.closures = {};
     if(!data.swapRequests) data.swapRequests = {};
     if(!data.confirmedTeeTimes) data.confirmedTeeTimes = {};
+    // Per-date override for how many tee times' worth of teams to split a
+    // round into — defaults to data.confirmedTeeTimes (the club-booking fact)
+    // but can be set lower when players drop out and fewer teams are needed
+    // that day. Only ever read by confirmedTeeTimesCountFor/computeTeamsForDate
+    // — never affects standby/capacity math, which still goes by the real
+    // confirmed tee-time count.
+    if(!data.teamsTeeTimesOverride) data.teamsTeeTimesOverride = {};
     if(!data.teeTimeSchedule) data.teeTimeSchedule = {};
     if(!data.teeRatings) data.teeRatings = {};
     if(!data.teeOptions) data.teeOptions = [];
@@ -2307,7 +2314,15 @@
       </div>`;
   }
 
+  // Number of teams to split a date's players into — the confirmed tee-time
+  // count, unless an admin has overridden it for this date specifically
+  // (see the "Number of tee times" field next to Generate suggested teams
+  // now). The override never touches data.confirmedTeeTimes itself, so
+  // standby/capacity elsewhere in the app (capacityFor) still reflect the
+  // real club-booking count.
   function confirmedTeeTimesCountFor(dateKey){
+    const override = data.teamsTeeTimesOverride && data.teamsTeeTimesOverride[dateKey];
+    if(typeof override === 'number' && override > 0) return override;
     const n = data.confirmedTeeTimes[dateKey];
     return (typeof n === 'number' && n > 0) ? n : null;
   }
@@ -2325,14 +2340,21 @@
       if(!isNaN(nd.getTime())) nextDateLabel = `${MON_NAMES[nd.getMonth()]} ${nd.getDate()}`;
     }
     const alreadyGenerated = nextKey ? !!data.teams[nextKey] : false;
+    const confirmedCount = nextKey ? data.confirmedTeeTimes[nextKey] : null;
+    const overrideCount = nextKey && data.teamsTeeTimesOverride ? data.teamsTeeTimesOverride[nextKey] : undefined;
+    const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || '');
     return `
       <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
         <span class="ts-import-row-label">Generate teams${nextDateLabel ? ` — ${esc(nextDateLabel)}` : ''}</span>
         ${nextKey ? `
           <p style="margin:0 0 10px;">${alreadyGenerated
-            ? 'Teams have already been generated for this round — make any changes in Swap players below.'
-            : 'Auto-splits everyone signed up for the upcoming round into two teams by handicap. Fine-tune the result afterward in Swap players below.'}</p>
-          <button type="button" class="ts-accept-scores-btn" id="ts-generate-teams-btn"${alreadyGenerated ? ' disabled' : ''}>Generate suggested teams now</button>
+            ? 'Teams have already been generated for this round — make any changes in Swap players below, or change the tee-time count and regenerate to start over.'
+            : 'Auto-splits everyone signed up for the upcoming round into teams by handicap. Fine-tune the result afterward in Swap players below.'}</p>
+          <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin:0 0 12px;">Number of tee times
+            <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:56px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+          </label>
+          <p style="margin:-6px 0 12px; font-size:12px; color:#6b6a5e;">Defaults to the confirmed count (${confirmedCount ? `${confirmedCount} tee time${confirmedCount===1?'':'s'}` : 'not set yet'}) — lower it here if players have dropped out and fewer teams are needed today. Only affects how teams are split, not the signup/standby cutoff.</p>
+          <button type="button" class="ts-accept-scores-btn" id="ts-generate-teams-btn">${alreadyGenerated ? 'Regenerate teams' : 'Generate suggested teams now'}</button>
         ` : `<p class="ts-empty">No upcoming play date yet.</p>`}
       </div>`;
   }
@@ -5546,15 +5568,54 @@
       };
     }
 
-    // No PIN needed, and no overwrite-confirm flow — the button itself is
-    // disabled (see generateTeamsBlockHtml) the moment teams exist for the
-    // upcoming round, so this only ever runs when there's genuinely nothing
-    // to discard yet.
+    // Number-of-tee-times override for team generation — persists per date
+    // (so it sticks around even if the page reloads before Generate is
+    // clicked), but never touches data.confirmedTeeTimes itself; see
+    // confirmedTeeTimesCountFor.
+    const teeTimesOverrideInput = document.getElementById('ts-teams-teetimes-override');
+    if(teeTimesOverrideInput){
+      teeTimesOverrideInput.addEventListener('change', async () => {
+        const dateKey = teeTimesOverrideInput.getAttribute('data-teetimes-date');
+        const raw = teeTimesOverrideInput.value.trim();
+        if(raw === ''){
+          delete data.teamsTeeTimesOverride[dateKey];
+        } else {
+          const n = parseInt(raw, 10);
+          if(isNaN(n) || n < 1 || n > MAX_TEE_TIMES){
+            await showMessage('Not valid', `Number of tee times has to be a whole number from 1 to ${MAX_TEE_TIMES}.`);
+            render();
+            return;
+          }
+          const confirmedCount = data.confirmedTeeTimes[dateKey];
+          if(typeof confirmedCount === 'number' && confirmedCount > 0 && n === confirmedCount){
+            delete data.teamsTeeTimesOverride[dateKey]; // matches the real confirmed count — no override needed
+          } else {
+            data.teamsTeeTimesOverride[dateKey] = n;
+          }
+        }
+        await saveData();
+        render();
+      });
+    }
+
+    // No PIN needed. Teams already existing for the upcoming round is no
+    // longer a hard block — regenerating (e.g. after lowering the tee-time
+    // count above) just confirms first, since it discards any manual swaps
+    // made since (generateTeamsForNextPlayDay only actually asks when there's
+    // something to lose).
     const generateTeamsBtn = document.getElementById('ts-generate-teams-btn');
     if(generateTeamsBtn){
       generateTeamsBtn.onclick = async () => {
-        const key = await generateTeamsForNextPlayDay();
-        if(!key){
+        const confirmOverwrite = () => askConfirm(
+          'Regenerate teams?',
+          'Teams already exist for this round — regenerating will discard any manual swaps made since. Continue?',
+          'Yes, regenerate',
+          'Cancel'
+        );
+        const key = await generateTeamsForNextPlayDay(confirmOverwrite);
+        if(key === 'cancelled'){
+          // admin backed out — nothing to do
+        } else if(!key){
           await showMessage('Nothing to generate', 'No upcoming play day has any signups yet.');
         } else {
           const d = new Date(key + 'T00:00:00');
