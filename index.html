@@ -2413,11 +2413,20 @@
     const nextDateLabel = isNaN(nd.getTime()) ? '' : `${MON_NAMES[nd.getMonth()]} ${nd.getDate()}`;
     const confirmedCount = data.confirmedTeeTimes[nextKey];
     const overrideCount = data.teamsTeeTimesOverride ? data.teamsTeeTimesOverride[nextKey] : undefined;
-    const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || '');
     const capacity = capacityFor(nextKey);
     const entries = data.signups[nextKey] || [];
     const { confirmed } = splitConfirmedStandby(entries, capacity);
     const confirmedPlayers = confirmed.length;
+    // If nobody's entered a real confirmed tee-time count yet (booking duty
+    // hasn't happened, or there's no override for this date), show a
+    // suggested value estimated from the confirmed player count instead of
+    // leaving the box blank — same formula generateTeamsForNextPlayDay
+    // already falls back to internally (confirmedTeeTimesCountFor returning
+    // null), so this is purely a display fix: it doesn't get saved as a real
+    // override unless the admin actually edits the field (see the 'change'
+    // handler below), it just shows what would happen anyway.
+    const suggestedFromPlayers = confirmedPlayers > 0 ? Math.min(MAX_TEE_TIMES, Math.max(1, Math.ceil(confirmedPlayers / PLAYERS_PER_TEE_TIME))) : '';
+    const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || suggestedFromPlayers);
     return `
       <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Number of tee times${nextDateLabel ? ` — ${esc(nextDateLabel)}` : ''}
         <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:50px; margin-left:6px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--ivory-line);">
@@ -5718,6 +5727,11 @@
         } else if(!key){
           await showMessage('Nothing to generate', 'No upcoming play day has any signups yet.');
         } else {
+          // Switch the Round picker over to whatever date teams were just
+          // generated for, rather than leaving it on whatever round happened
+          // to be in view before — that's the round the admin almost
+          // certainly wants to look at next.
+          scoringSelectedDate = key;
           const d = new Date(key + 'T00:00:00');
           await showMessage('Teams generated', `Teams for ${MON_NAMES[d.getMonth()]} ${d.getDate()} are ready — review them below and use Swap players to fine-tune.`);
         }
