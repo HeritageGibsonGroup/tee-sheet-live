@@ -727,7 +727,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'September 18, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'September 21, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -751,7 +751,15 @@
   // most noticeable as a Home Screen icon on iOS getting stuck on the loading
   // screen with no way out short of force-closing it. This aborts and lets the
   // caller fall back instead of waiting indefinitely.
-  const FETCH_TIMEOUT_MS = 20000;
+  //
+  // Kept comfortably above the backend's own 30s lock-wait budget (every save
+  // action on the Code.gs side queues on one shared lock while a busy round
+  // has several scorekeepers saving around the same time) — a client timeout
+  // shorter than that meant a save that was still legitimately queued, and
+  // about to succeed, got aborted and flagged "didn't save yet" anyway, which
+  // then queued up an unnecessary duplicate retry behind the very same lock
+  // and made the pileup worse on a busy day.
+  const FETCH_TIMEOUT_MS = 35000;
   async function fetchWithTimeout(url, options){
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -962,13 +970,11 @@
   // group's entry can't silently clobber another's the way a full-blob
   // overwrite could. The server's returned round object is authoritative.
   //
-  // entries: [{ playerId, strokes }], strokes null/0 clears that player's
-  // score for this hole. Updates local state optimistically first (so the UI
-  // reflects the post immediately even on a slow connection), then sends the
-  // one batched request.
-  async function postHoleScores(dateKey, holeNum, entries){
-    const round = ensureRoundDefaults(dateKey);
-    const holeKey = String(holeNum);
+  // Shared by postHoleScores (below) and scoringHeartbeat's re-apply step —
+  // stamps one hole's worth of entries onto a round object in place. Kept as
+  // its own function so the two call sites can never drift apart on exactly
+  // what "apply this hole's entries" means.
+  function applyHoleEntries_(round, holeKey, entries){
     entries.forEach(({ playerId, strokes }) => {
       if(typeof strokes === 'number' && strokes > 0){
         if(!round.scores[playerId]) round.scores[playerId] = {};
@@ -980,6 +986,16 @@
         if(round.confirmed[playerId]) delete round.confirmed[playerId][holeKey];
       }
     });
+  }
+
+  // entries: [{ playerId, strokes }], strokes null/0 clears that player's
+  // score for this hole. Updates local state optimistically first (so the UI
+  // reflects the post immediately even on a slow connection), then sends the
+  // one batched request.
+  async function postHoleScores(dateKey, holeNum, entries){
+    const round = ensureRoundDefaults(dateKey);
+    const holeKey = String(holeNum);
+    applyHoleEntries_(round, holeKey, entries);
     const pendingKey = holePostKey(dateKey, holeKey);
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_hole_scores`;
@@ -1039,7 +1055,22 @@
       try{
         const fetched = await fetchSharedData();
         if(fetched && typeof fetched === 'object' && !fetched.error){
-          if(fetched.rounds){ data.rounds = fetched.rounds; changed = true; }
+          if(fetched.rounds){
+            data.rounds = fetched.rounds;
+            // The line above just replaced data.rounds wholesale with the
+            // server's copy — which doesn't yet know about any hole that
+            // failed to save (still sitting in pendingHolePosts, e.g. the
+            // retry a few lines up just failed again). Without this, a
+            // scorekeeper's own entries could vanish out from under them the
+            // moment this same heartbeat tick's fetch lands. Re-stamp every
+            // still-pending hole back on top so nothing entered but not yet
+            // confirmed-saved is ever silently lost.
+            Object.values(pendingHolePosts).forEach(({ dateKey, holeNum, entries }) => {
+              const round = ensureRoundDefaults(dateKey);
+              applyHoleEntries_(round, holeNum, entries);
+            });
+            changed = true;
+          }
           if(fetched.teams){ data.teams = fetched.teams; changed = true; }
           if(typeof fetched._lastModified === 'number'){ data._lastModified = fetched._lastModified; lastKnownModified = fetched._lastModified; }
         }
@@ -2392,6 +2423,27 @@
     if(typeof override === 'number' && override > 0) return override;
     const n = data.confirmedTeeTimes[dateKey];
     return (typeof n === 'number' && n > 0) ? n : null;
+  }
+
+  // How many teams the field currently confirmed for 18 holes could fill
+  // without benching anyone unnecessarily — same headcount formula already
+  // shown as a placeholder in the "Number of tee times" field
+  // (teeTimesOverrideRowHtml), but counted the same way computeTeamsForDate
+  // itself counts eligible players (18-hole confirmed entries only, not
+  // 9-hole players). Used by "Generate/Regenerate teams" to catch the case
+  // where more players ended up confirmed for 18 holes than the tee-time/
+  // team count on file accounts for — e.g. a late add, or someone switching
+  // from 9 to 18 holes at the last minute — so nobody gets benched just
+  // because the count wasn't manually bumped up first. Returns null if
+  // nobody's confirmed for 18 holes yet.
+  function suggestedTeamCountFor(dateKey){
+    const entries = data.signups[dateKey] || [];
+    const capacity = capacityFor(dateKey);
+    const { confirmed } = splitConfirmedStandby(entries, capacity);
+    const playing = confirmed.length ? confirmed : entries;
+    const eighteenHoleCount = playing.filter(e => e.holes === '18').length;
+    if(!eighteenHoleCount) return null;
+    return Math.min(MAX_TEE_TIMES, Math.max(1, Math.ceil(eighteenHoleCount / PLAYERS_PER_TEE_TIME)));
   }
 
   // The tee-times override + a read-only "N players confirmed" readout,
@@ -5715,6 +5767,33 @@
     const generateTeamsBtn = document.getElementById('ts-generate-teams-btn');
     if(generateTeamsBtn){
       generateTeamsBtn.onclick = async () => {
+        const nextKey = nextPlayDateKey();
+        if(nextKey){
+          const suggested = suggestedTeamCountFor(nextKey);
+          const current = confirmedTeeTimesCountFor(nextKey);
+          // Only ever offer to raise the count — never second-guess an admin
+          // who deliberately set fewer, bigger teams on purpose. This only
+          // catches the case where the confirmed/override count is stale —
+          // more 18-hole players ended up confirmed than it accounts for —
+          // which would otherwise bench people who don't need to be benched.
+          // current === null means nothing's set at all yet, so
+          // computeTeamsForDate already falls back to this same suggestion
+          // on its own — nothing to fix there.
+          if(suggested !== null && current !== null && suggested > current){
+            const nd = new Date(nextKey + 'T00:00:00');
+            const nextDateLabel = isNaN(nd.getTime()) ? 'The upcoming round' : `${MON_NAMES[nd.getMonth()]} ${nd.getDate()}`;
+            const bump = await askConfirm(
+              'More players than teams set?',
+              `${nextDateLabel} has enough confirmed 18-hole players for ${suggested} teams, but the tee-time/team count is still set to ${current} — generating now would bench more players than necessary. Use ${suggested} teams instead?`,
+              `Yes, use ${suggested} teams`,
+              `No, keep ${current}`
+            );
+            if(bump){
+              if(!data.teamsTeeTimesOverride) data.teamsTeeTimesOverride = {};
+              data.teamsTeeTimesOverride[nextKey] = suggested;
+            }
+          }
+        }
         const confirmOverwrite = () => askConfirm(
           'Regenerate teams?',
           'Teams already exist for this round — regenerating will discard any manual swaps made since. Continue?',
