@@ -1122,7 +1122,14 @@
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
   let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'admin'
   let adminSubTab = 'roster'; // 'roster' | 'closures' | 'pastDuty' | 'activityLog' | 'data' | 'reminders' | 'handicaps'
-  let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab
+  let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab — always the upcoming round unless reviewDateKey (below) pins it to a past one
+  // Set by "Review prior rounds" — null means Scoring & Bets always follows
+  // whatever the current upcoming round is (no picker shown for that, by
+  // design — there's only ever one round being set up/played at a time). A
+  // dateKey here pins the view to that already-played round instead, for
+  // looking back at (or fixing) its scores, entirely separate from "what's
+  // the next round" so the two can never be confused with each other.
+  let reviewDateKey = null;
   let scoringViewMode = 'setup'; // 'setup' | 'live' | 'scoreboard' | 'season' — which part of Scoring & Bets is showing
   let scoringHoleIndex = 0; // position within flatHoles for the hole-by-hole view
   let scoreboardSeriesFilter = 0; // which single series (0/1/2) the Match scoreboard shows at a time
@@ -4466,55 +4473,72 @@
 
     const teamDates = Object.keys(data.teams).sort();
     const upcomingKey = nextPlayDateKey();
-    // The Round dropdown below always offers the upcoming play date too, even
-    // before teams have been generated for it — so it can be picked, "Number
-    // of tee times" adjusted, and "Generate suggested teams now" reached, all
-    // from this same dropdown, instead of some date needing teams already for
-    // the dropdown to show up at all.
-    const availableDates = (upcomingKey && !teamDates.includes(upcomingKey))
-      ? teamDates.concat([upcomingKey]).sort()
-      : teamDates;
-    if(availableDates.length === 0){
+    // Every date with teams OTHER than the upcoming one is a "prior round" —
+    // reachable only through the separate "Review prior rounds" picker below,
+    // never through the main Set up/Round flow, which always just means
+    // whatever's coming up next (see scoringSelectedDate's assignment below).
+    const priorDates = teamDates.filter(k => k !== upcomingKey);
+    if(reviewDateKey && !priorDates.includes(reviewDateKey)) reviewDateKey = null; // stale pick (e.g. that date's no longer prior, or lost its teams) — fall back to the current round
+    const reviewing = !!reviewDateKey;
+    // scoringSelectedDate stays the one thing the rest of this panel (and the
+    // event handlers further down — round settings, accept teams, playing
+    // groups, etc.) reads to know which date it's working on; only how it
+    // gets set changes here.
+    scoringSelectedDate = reviewing ? reviewDateKey : upcomingKey;
+    const dateKey = scoringSelectedDate;
+
+    let upcomingDateLabel = '';
+    if(upcomingKey){
+      const ud = new Date(upcomingKey + 'T00:00:00');
+      upcomingDateLabel = `${DOW_NAMES[ud.getDay()]}, ${MON_NAMES[ud.getMonth()]} ${ud.getDate()}`;
+    }
+    // Newest-first, same ordering the old combined dropdown used. The first
+    // option always means "stop reviewing, go back to the current round" —
+    // labeled with that round's own date so it's never ambiguous which round
+    // that actually is. Computed here (not gated on there being an upcoming
+    // date) so review stays reachable even in the unlikely case there isn't
+    // one right now.
+    const priorOptionsHtml = priorDates.slice().reverse().map(k => {
+      const kd = new Date(k + 'T00:00:00');
+      return `<option value="${k}" ${k===reviewDateKey?'selected':''}>${DOW_NAMES[kd.getDay()]}, ${MON_NAMES[kd.getMonth()]} ${kd.getDate()}</option>`;
+    }).join('');
+    const reviewPickerHtml = priorDates.length ? `
+      <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
+        <span class="ts-import-row-label">Review prior rounds</span>
+        <div style="margin-top:6px;">
+          <select id="ts-review-date-select" style="font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
+            <option value="">${upcomingKey ? `— current round (${upcomingDateLabel}) —` : '— current round —'}</option>
+            ${priorOptionsHtml}
+          </select>
+        </div>
+      </div>` : '';
+
+    if(!dateKey){
       el.innerHTML = `
         <div class="ts-roster-panel">
-          <h4 style="margin:0 0 4px;">Set up</h4>
+          ${reviewPickerHtml}
+          <h4 style="margin:16px 0 4px;">Set up</h4>
           <p class="ts-empty">No upcoming play date yet — once one has signups, come back here to generate teams and start scoring.</p>
         </div>`;
       return;
     }
-    if(!scoringSelectedDate || !availableDates.includes(scoringSelectedDate)){
-      scoringSelectedDate = availableDates[availableDates.length - 1];
-    }
-    const dateKey = scoringSelectedDate;
     const teamsInfo = data.teams[dateKey] || null;
     const d = new Date(dateKey + 'T00:00:00');
     const dateLabel = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
 
-    const dateOptionsHtml = availableDates.slice().reverse().map(k => {
-      const kd = new Date(k + 'T00:00:00');
-      const label = `${DOW_NAMES[kd.getDay()]}, ${MON_NAMES[kd.getMonth()]} ${kd.getDate()}`;
-      return `<option value="${k}" ${k===dateKey?'selected':''}>${label}${data.teams[k] ? '' : ' — no teams yet'}</option>`;
-    }).join('');
-
-    // The selected date hasn't had teams generated yet (only possible for the
-    // upcoming date — see availableDates above) — show just the Round
-    // dropdown plus "Number of tee times"/Generate, instead of the full Teams/
-    // Live Scoring/Scoreboard view below, which has nothing to show until
-    // teams exist. Starting hole/Stake/Game/Handicap basis (further down,
-    // once teams exist) don't need setting yet either — Starting hole in
-    // particular is normally only decided the morning of play.
+    // The current round hasn't had teams generated yet — show just the
+    // Review picker (if there's anything to review) plus "Number of tee
+    // times"/Generate, instead of the full Teams/Live Scoring/Scoreboard view
+    // below, which has nothing to show until teams exist. Starting hole/
+    // Stake/Game/Handicap basis (further down, once teams exist) don't need
+    // setting yet either — Starting hole in particular is normally only
+    // decided the morning of play. (Can't happen while reviewing — every
+    // prior date in priorDates already has teams by construction.)
     if(!teamsInfo){
       el.innerHTML = `
         <div class="ts-roster-panel">
-          <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
-            <span class="ts-import-row-label">Round</span>
-            <div style="margin-top:6px;">
-              <select id="ts-scoring-date-select" style="font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
-                ${dateOptionsHtml}
-              </select>
-            </div>
-          </div>
-          <h4 style="margin:16px 0 4px;">Set up</h4>
+          ${reviewPickerHtml}
+          <h4 style="margin:16px 0 4px;">Set up — ${esc(dateLabel)}</h4>
           ${generateTeamsBlockHtml(true)}
           <p class="ts-empty" style="margin-top:14px;">Once teams are generated for ${esc(dateLabel)}, come back here to review them, swap players, and start scoring.</p>
         </div>`;
@@ -4924,15 +4948,11 @@
 
     el.innerHTML = `
       <div class="ts-roster-panel">
-        <h4 style="margin:0 0 4px;">Set up</h4>
-        <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
-          <span class="ts-import-row-label">Round</span>
-          <div style="margin-top:6px;">
-            <select id="ts-scoring-date-select" style="font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
-              ${dateOptionsHtml}
-            </select>
-          </div>
-        </div>
+        <h4 style="margin:0 0 4px;">${reviewing ? `Review — ${esc(dateLabel)}` : 'Set up'}</h4>
+        ${reviewing ? `
+        <div class="ts-unsaved-banner">Reviewing ${esc(dateLabel)} — an already-played round, not the upcoming one. <button type="button" id="ts-back-to-current-round" style="color:var(--rust); font-weight:700; font-size:12.5px; text-decoration:underline; background:none; border:none; cursor:pointer;">Back to current round</button></div>
+        ` : ''}
+        ${reviewPickerHtml}
 
         <div class="ts-subtabbar" style="margin-top:22px; padding-top:22px; border-top:2px solid var(--ivory-line);">
           <button class="ts-subtab ${scoringViewMode==='setup'?'active':''}" data-scoring-view="setup">Set up &amp; Bets</button>
@@ -4968,14 +4988,16 @@
                   <option value="hc" ${round.handicapBasis==='hc'?'selected':''}>CH (full course handicap)</option>
                 </select>
               </label>
-              ${teeTimesOverrideRowHtml()}
+              ${reviewing ? '' : teeTimesOverrideRowHtml()}
             </div>
           </div>
 
+          ${reviewing ? '' : `
           <div style="margin-top:22px; padding-top:22px; border-top:2px solid var(--ivory-line);">
             <h4 style="margin:0 0 4px;">Teams</h4>
           </div>
           ${generateTeamsBlockHtml()}
+          `}
           ${teamsDisplayHtml}
           ${swapRowHtml}
           ${acceptTeamsHtml}
@@ -5930,13 +5952,26 @@
       });
     });
 
-    const scoringDateSelect = document.getElementById('ts-scoring-date-select');
-    if(scoringDateSelect){
-      scoringDateSelect.onchange = () => {
-        scoringSelectedDate = scoringDateSelect.value;
+    const reviewDateSelect = document.getElementById('ts-review-date-select');
+    if(reviewDateSelect){
+      reviewDateSelect.onchange = () => {
+        // Empty value is the "— current round —" option — go back to
+        // automatically following the upcoming round instead of pinning to a
+        // past one (see reviewDateKey/scoringSelectedDate at the top of
+        // renderScoringPanel).
+        reviewDateKey = reviewDateSelect.value || null;
         // A different round can have completely different teams, so an explicit
         // team-filter choice from the last one shouldn't carry over — back to
         // auto (viewer's own team, if they're on one this time).
+        scoringTeamFilter = 'auto';
+        render();
+      };
+    }
+
+    const backToCurrentRoundBtn = document.getElementById('ts-back-to-current-round');
+    if(backToCurrentRoundBtn){
+      backToCurrentRoundBtn.onclick = () => {
+        reviewDateKey = null;
         scoringTeamFilter = 'auto';
         render();
       };
