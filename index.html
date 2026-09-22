@@ -216,88 +216,6 @@
   }
   .ts-team-so{ color:#8b8a7c; font-size:10.5px; }
   .ts-score-table{ border-collapse:collapse; font-family:'IBM Plex Mono',monospace; }
-  /* The Match scoreboard now shows all three series in one sideways-scrolling
-     card instead of a tab per series. Pinning the name column means the player
-     you're reading never scrolls off the left while you swipe out to hole 18 —
-     without it, a wide card is very easy to get lost in. */
-  .ts-score-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; position:relative; }
-  .ts-score-table td.ts-score-name, .ts-score-table th.ts-score-name-head{
-    position:sticky; left:0; z-index:2; background:#fff; box-shadow:1px 0 0 var(--ivory-line);
-  }
-  .ts-par-row th.ts-score-name-head{ background:#fff; }
-  /* A visible line where one series ends and the next begins, so a scrolled
-     card still reads as three separate bets rather than one long row. */
-  .ts-score-table th.ts-series-start, .ts-score-table td.ts-series-start{ border-left:2px solid var(--ivory-line); }
-  .ts-series-head th{
-    font-family:'IBM Plex Mono',monospace; font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
-    color:var(--brass); font-weight:700; padding-bottom:2px;
-  }
-  /* The ball that's actually counting toward the team's low-ball net on this
-     hole. Deliberately a different signal from the brass stroke-received
-     shading (which says "this player gets a shot here"), because they answer
-     different questions and often land on different players. */
-  .ts-score-table td.ts-counts .ts-score-display,
-  .ts-scorecard-table td.ts-counts .ts-score-display{
-    background:var(--fairway); color:#fff; font-weight:700; border-color:var(--fairway);
-  }
-  .ts-series-total{ background:#FAF7EF; font-weight:700; }
-  /* On a phone the pinned name column was eating nearly half the card, leaving
-     room for about three holes. Let it wrap to two short lines instead of
-     running on in one — narrower column, several more holes visible per swipe. */
-  @media (max-width: 560px){
-    .ts-score-table td.ts-score-name, .ts-score-table th.ts-score-name-head{
-      max-width:104px; white-space:normal; font-size:11.5px; line-height:1.25;
-    }
-  }
-  .ts-score-table th.ts-series-total{ color:var(--fairway); }
-  .ts-counts-key{
-    font-family:'Inter',sans-serif; font-size:11.5px; color:#6b6a5e; margin:4px 0 0;
-    display:flex; align-items:center; gap:4px 16px; flex-wrap:wrap;
-  }
-  .ts-counts-key .ts-key-item{ display:inline-flex; align-items:center; gap:6px; }
-  .ts-counts-key .ts-key-swatch{
-    display:inline-block; width:14px; height:14px; border-radius:4px; background:var(--fairway);
-    flex-shrink:0; margin-right:6px; vertical-align:-2px;
-  }
-  .ts-counts-key .ts-key-swatch-stroke{ background:#FBF3E4; border:1px solid var(--brass); }
-  .ts-score-gross{
-    display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--fairway); font-weight:700;
-  }
-  .ts-scroll-hint{
-    font-family:'Inter',sans-serif; font-size:11.5px; color:#8b8a7c; margin:2px 0 0;
-  }
-  /* "Bigger buttons" — an opt-in, remembered per device (see BIG_CONTROLS_KEY).
-     Deliberately scoped to the Live Scoring controls and the player line next
-     to them: it makes the things you actually tap during a round easier to hit
-     and read without resizing the whole app on someone who doesn't want that. */
-  .ts-big-controls .ts-score-step{ width:62px; height:62px; font-size:30px; border-radius:12px; }
-  .ts-big-controls .ts-score-input-lg{ width:96px; font-size:34px; padding:16px 4px; }
-  .ts-big-controls .ts-hbh-nav-btn{ width:68px; height:68px; font-size:34px; }
-  .ts-big-controls .ts-hbh-hole-select{ font-size:17px; padding:12px 8px; flex-basis:165px; }
-  /* These two used to be set inline on the elements themselves, which silently
-     beat every rule below — an inline style always wins over a stylesheet. That
-     is why "Bigger buttons" enlarged the controls but never the name. Keep the
-     defaults here so the override actually applies. */
-  .ts-hbh-player-name{ font-weight:600; font-size:15px; }
-  .ts-hbh-player-note{ font-size:11.5px; color:#8b8a7c; }
-  .ts-big-controls .ts-hbh-player-name{ font-size:30px; line-height:1.15; }
-  .ts-big-controls .ts-hbh-player-note{ font-size:19px; line-height:1.35; color:#5f5e52; }
-  /* "gets a stroke here" is the one thing on this line that changes the math,
-     so in bigger-buttons mode it reads as its own highlighted phrase rather
-     than more grey small print. */
-  .ts-big-controls .ts-hbh-stroke-note{ color:var(--brass); font-weight:700; }
-  .ts-big-controls .ts-hbh-row{ padding:20px 0; flex-wrap:wrap; gap:10px; }
-  /* At this size the name and the −/+ pair can't share a phone-width row
-     without the name wrapping mid-word, which is the opposite of what someone
-     turned this on for. Give the name the full width and centre the controls
-     under it — bigger targets, nothing truncated. */
-  .ts-big-controls .ts-hbh-row > div:first-child{ flex:1 1 100%; }
-  .ts-big-controls .ts-hbh-controls{ flex:1 1 100%; justify-content:center; gap:16px; }
-  .ts-size-toggle{
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; color:var(--fairway);
-    background:#fff; border:1px solid var(--ivory-line); border-radius:8px; padding:8px 12px; cursor:pointer;
-  }
-  .ts-size-toggle.active{ background:var(--brass); border-color:var(--brass); color:var(--fairway-dark); }
   .ts-score-table th, .ts-score-table td{ text-align:center; padding:3px 2px; }
   .ts-score-table thead th{ font-size:10px; font-weight:600; color:#8b8a7c; }
   .ts-score-table td.ts-score-name, .ts-score-table th:first-child{ text-align:left; padding-right:10px; white-space:nowrap; font-family:'Inter',sans-serif; font-size:12.5px; }
@@ -783,16 +701,6 @@
   const ADMIN_GATE_KEY = IS_LIVE_ENV ? 'golf-league-admin-gate-players' : 'golf-league-admin-gate-players-TEST';
   const VERIFIED_KEY = IS_LIVE_ENV ? 'golf-league-verified-players' : 'golf-league-verified-players-TEST';
   const GUEST_UNLOCK_KEY = IS_LIVE_ENV ? 'golf-league-guest-unlocked' : 'golf-league-guest-unlocked-TEST';
-  // Remembered per device, not per login — someone who needs bigger targets
-  // needs them every round, and asking again each time would defeat the point.
-  const BIG_CONTROLS_KEY = IS_LIVE_ENV ? 'golf-league-big-controls' : 'golf-league-big-controls-TEST';
-  // Last-known-good copy of the whole shared blob, kept on this device only.
-  // The app paints from this instantly on open and then quietly refreshes from
-  // the backend in the background, instead of sitting on "setting the tee
-  // sheet…" for however long an Apps Script round trip happens to take on a
-  // phone at the course. Never a source of truth: nothing can be SAVED until
-  // the fresh copy has landed (see whenFreshData below).
-  const DATA_CACHE_KEY = IS_LIVE_ENV ? 'golf-league-data-cache' : 'golf-league-data-cache-TEST';
   // Data Import/Export & Comparison always deals with exactly two sides — this
   // app, and a snapshot pasted in from "the other one" — so these name which
   // is which in plain "test"/"live" terms instead of the generic "here"/
@@ -851,7 +759,7 @@
   // about to succeed, got aborted and flagged "didn't save yet" anyway, which
   // then queued up an unnecessary duplicate retry behind the very same lock
   // and made the pileup worse on a busy day.
-  const FETCH_TIMEOUT_MS = 45000;
+  const FETCH_TIMEOUT_MS = 35000;
   async function fetchWithTimeout(url, options){
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -862,33 +770,18 @@
     }
   }
 
-  function writeDataCache(text){
-    try{ localStorage.setItem(DATA_CACHE_KEY, text); }catch(e){ /* quota/private mode — cache is optional */ }
-  }
-  function readDataCache(){
-    try{
-      const text = localStorage.getItem(DATA_CACHE_KEY);
-      if(!text) return null;
-      const parsed = JSON.parse(text);
-      return (parsed && typeof parsed === 'object' && !parsed.error) ? parsed : null;
-    }catch(e){ return null; }
-  }
-
   async function fetchSharedData(){
     const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}`;
     const res = await fetchWithTimeout(url);
     const text = await res.text();
-    const parsed = JSON.parse(text);
-    // Only cache a real, complete blob — never an { error } response.
-    if(parsed && typeof parsed === 'object' && !parsed.error && parsed.roster) writeDataCache(text);
-    return parsed;
+    return JSON.parse(text);
   }
 
   async function saveSharedData(obj){
     const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}`;
     // Content-Type text/plain avoids a CORS preflight that Apps Script Web Apps
     // don't handle well — the server still parses the body as JSON regardless.
-    const res = await fetchWithTimeout(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(obj)
@@ -1104,14 +997,6 @@
     const holeKey = String(holeNum);
     applyHoleEntries_(round, holeKey, entries);
     const pendingKey = holePostKey(dateKey, holeKey);
-    // Posts now happen in the background, so hole 11's and hole 12's can be in
-    // the air at the same time and land out of order. Each response carries the
-    // server's whole round object, which for the older of the two won't know
-    // about the newer hole yet — so remember what's still in flight and
-    // re-stamp it after adopting any server copy. Without this, a slow response
-    // for an earlier hole could visibly erase a later one that had already been
-    // entered.
-    inFlightHolePosts[pendingKey] = { dateKey, holeNum: holeKey, entries };
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_hole_scores`;
       const res = await fetchWithTimeout(url, {
@@ -1127,8 +1012,6 @@
       }
       unsavedHoleKeys.delete(pendingKey);
       delete pendingHolePosts[pendingKey];
-      delete inFlightHolePosts[pendingKey];
-      reapplyLocalHoleEdits_();
       return true;
     }catch(e){
       // Optimistic local edit stands — the scoreboard and hole-by-hole view
@@ -1137,46 +1020,16 @@
       // of just being lost if the tab closes before the signal comes back.
       unsavedHoleKeys.add(pendingKey);
       pendingHolePosts[pendingKey] = { dateKey, holeNum: holeKey, entries };
-      delete inFlightHolePosts[pendingKey];
       return false;
     }
-  }
-
-  // Re-stamps every hole edit this device knows about but the server copy may
-  // not yet — anything still in flight, plus anything that outright failed and
-  // is queued for retry. Called after adopting any server round data, so a
-  // refresh can never silently roll back something already entered here.
-  function reapplyLocalHoleEdits_(){
-    [inFlightHolePosts, pendingHolePosts].forEach(bag => {
-      Object.values(bag).forEach(({ dateKey, holeNum, entries }) => {
-        const round = ensureRoundDefaults(dateKey);
-        applyHoleEntries_(round, String(holeNum), entries);
-      });
-    });
   }
 
   // Re-attempts every hole post that previously failed, using whatever's
   // currently in local state as the values to send. Doesn't render itself —
   // callers decide when that's safe (a manual tap re-renders right away; the
   // background heartbeat below only does so when nobody's mid-edit).
-  let retryInFlight = false;
   async function retryUnsavedHolePosts(){
     if(!unsavedHoleKeys.size) return;
-    // A manual tap, the "back online" event and the periodic heartbeat can all
-    // land on this at once. Without this guard each one re-posted the same
-    // hole again, and every duplicate queued behind the SAME backend script
-    // lock the original was still waiting on — which is how one slow save on a
-    // busy day turned into a pile of them and made every other scorer's save
-    // slow too.
-    if(retryInFlight) return;
-    retryInFlight = true;
-    try{
-      await retryUnsavedHolePosts_();
-    } finally {
-      retryInFlight = false;
-    }
-  }
-  async function retryUnsavedHolePosts_(){
     const keys = Array.from(unsavedHoleKeys);
     for(const key of keys){
       const pending = pendingHolePosts[key];
@@ -1191,39 +1044,10 @@
   // reloading. Skips the whole tick (not just the pull) if anything in the app has
   // focus, so a background heartbeat can never interrupt someone mid-keystroke,
   // on this tab or any other.
-  // True whenever it would be rude (or destructive) to re-render underneath
-  // the person: something's focused, or there are real, hand-entered edits on
-  // the hole currently on screen that haven't been posted yet. Checked BEFORE
-  // the tick and again right before rendering — the fetch in between can take
-  // several seconds on a course signal, and a scorer can easily start typing
-  // during it. Re-rendering then blew away the box they were in, which is a
-  // large part of what "the score I entered disappeared" actually was.
-  function scoringBusy(){
-    const active = document.activeElement;
-    if(active && root.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA')) return true;
-    return Object.keys(hbhDraft).some(id => !hbhSeededIds.has(id));
-  }
-
-  let heartbeatInFlight = false;
   async function scoringHeartbeat(){
-    // setInterval doesn't wait for an async tick to finish. On a slow signal a
-    // tick could still be waiting on its fetch when the next one fired, so the
-    // ticks stacked up and each added another full-blob read (and another set
-    // of retries) to the same backend queue. One at a time, always.
-    if(heartbeatInFlight) return;
-    // Nothing to refresh for a phone in someone's pocket — and every skipped
-    // tick is one less request competing for the backend's single lock.
-    if(document.visibilityState === 'hidden' && !unsavedHoleKeys.size) return;
-    if(scoringBusy()) return;
-    heartbeatInFlight = true;
-    try{
-      await scoringHeartbeat_();
-    } finally {
-      heartbeatInFlight = false;
-    }
-  }
-
-  async function scoringHeartbeat_(){
+    const active = document.activeElement;
+    const editing = active && root.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'SELECT' || active.tagName === 'TEXTAREA');
+    if(editing) return;
     let changed = false;
     if(unsavedHoleKeys.size){ await retryUnsavedHolePosts(); changed = true; }
     const viewingLive = activeSection === 'scoring';
@@ -1241,7 +1065,10 @@
             // moment this same heartbeat tick's fetch lands. Re-stamp every
             // still-pending hole back on top so nothing entered but not yet
             // confirmed-saved is ever silently lost.
-            reapplyLocalHoleEdits_();
+            Object.values(pendingHolePosts).forEach(({ dateKey, holeNum, entries }) => {
+              const round = ensureRoundDefaults(dateKey);
+              applyHoleEntries_(round, holeNum, entries);
+            });
             changed = true;
           }
           if(fetched.teams){ data.teams = fetched.teams; changed = true; }
@@ -1249,11 +1076,7 @@
         }
       }catch(e){ /* best-effort — try again next tick */ }
     }
-    // Re-check: the person may have started entering scores while the fetch
-    // above was in flight. Their edits are safe in hbhDraft either way, but
-    // re-rendering would yank focus out of the box mid-entry, so leave the
-    // screen alone and pick the refresh up on the next quiet tick.
-    if(changed && !scoringBusy()) render();
+    if(changed) render();
   }
 
   async function saveRoundSettings(dateKey, patch){
@@ -1302,11 +1125,7 @@
   let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab
   let scoringViewMode = 'setup'; // 'setup' | 'live' | 'scoreboard' | 'season' — which part of Scoring & Bets is showing
   let scoringHoleIndex = 0; // position within flatHoles for the hole-by-hole view
-  let scoreboardSeriesFilter = 0; // retained for Season Standings' own per-series views
-  // Live Scoring's bigger-buttons mode. Read once at startup from this device's
-  // own storage (see BIG_CONTROLS_KEY) and applied as a class on the app root.
-  let bigControls = false;
-  try{ bigControls = localStorage.getItem(BIG_CONTROLS_KEY) === 'true'; }catch(e){ bigControls = false; }
+  let scoreboardSeriesFilter = 0; // which single series (0/1/2) the Match scoreboard shows at a time
   // Which team's players Live Scoring's hole-by-hole view shows — 'auto'
   // (default) means "whichever team the signed-in viewer is on, else
   // everyone"; 'all' or a team index is an explicit override the viewer
@@ -1333,30 +1152,18 @@
   // onto the wrong hole.
   let hbhDraft = {};
   let hbhDraftKey = null; // `${dateKey}::${holeNum}` the draft above belongs to
-  // Which of the entries in hbhDraft above got there from the automatic par
-  // pre-fill rather than from someone actually touching the box. A hole where
-  // everyone made par should take zero taps, so every blank box starts at the
-  // hole's par — but the app still needs to tell "nobody touched this, it just
-  // shows par" apart from "a person confirmed par here," so that browsing back
-  // through earlier holes to look at them doesn't quietly stamp pars over
-  // holes that were never played.
-  let hbhSeededIds = new Set();
   // A whole hole's worth of scores that were "posted" but didn't make it to the
   // backend (spotty course signal) — the visible edits still stand locally, and
   // this gets a "not saved" banner plus an automatic retry (on reconnect, the
   // periodic heartbeat, or a manual tap) instead of quietly staying lost.
   let unsavedHoleKeys = new Set();
   let pendingHolePosts = {}; // holeKey (see below) -> { dateKey, holeNum, entries } to retry
-  // Hole posts currently on the wire — neither confirmed saved nor known to
-  // have failed. Kept separately from pendingHolePosts so a refresh that lands
-  // mid-post doesn't roll them back on screen. See reapplyLocalHoleEdits_.
-  let inFlightHolePosts = {};
   function holePostKey(dateKey, holeNum){ return `${dateKey}::${String(holeNum)}`; }
   // Collapsed by default — Live Scoring's own "Scorecards" section (below the
   // score-entry boxes) showing every team's full hole 1-18 card, whatever's
   // posted so far. Just a look-at-everyone's-progress convenience alongside
   // score entry, so it starts closed to keep the entry boxes front and center.
-  let liveScorecardsOpen = true;
+  let liveScorecardsOpen = false;
   // Admin > Handicaps > Player handicaps: batch-edit draft. Handicap Index
   // fields (and the effective-date picker) used to save on every single
   // change, which meant updating a whole roster's worth of players in a row
@@ -1563,25 +1370,6 @@
       // connect" screen instead of quietly rendering an empty roster.
       bootError = true;
     }
-    hydrateLoadedData({ allowSelfHealSave: !bootError });
-  }
-
-  // Paint-now path: hydrate whatever this device cached from its last
-  // successful load, so the app is usable the moment it opens instead of
-  // waiting on a backend round trip. Returns false if there's no cache yet
-  // (first ever visit on this device), in which case the loading screen
-  // stands as before. Deliberately never triggers the self-heal save below —
-  // cached data is not authoritative and must never be written back.
-  function loadDataFromCache(){
-    const cached = readDataCache();
-    if(!cached) return false;
-    data = cached;
-    hydrateLoadedData({ allowSelfHealSave: false });
-    return true;
-  }
-
-  function hydrateLoadedData(opts){
-    const allowSelfHealSave = !!(opts && opts.allowSelfHealSave);
     if(!data.roster) data.roster = [];
     if(!data.signups) data.signups = {};
     if(!data.duty) data.duty = {};
@@ -1651,7 +1439,7 @@
     // handicap fields, persist the cleanup in the background so the fix sticks for
     // everyone, not just this client's view. Fire-and-forget — never block the
     // first paint on this.
-    if(allowSelfHealSave && (removedGhosts > 0 || healedTeams > 0)){ saveData().catch(()=>{}); }
+    if(removedGhosts > 0 || healedTeams > 0){ saveData().catch(()=>{}); }
   }
 
   // Before writing, check whether the server's data has changed since we last
@@ -1679,13 +1467,6 @@
   }
 
   async function saveData(){
-    // If the screen is currently painted from this device's cache, the fresh
-    // copy hasn't landed yet — writing the whole blob from cached data could
-    // roll back someone else's change made in between. Wait the moment or two
-    // out first. (checkNotStale below is the second line of defence, but this
-    // avoids scaring the user with its warning over a race the app can simply
-    // resolve itself.)
-    await whenFreshData();
     const ok = await checkNotStale();
     if(!ok) return;
     data._lastModified = Date.now();
@@ -2949,26 +2730,6 @@
   // Round setup per round.
   function betStrokesFor(p, basis){
     return basis === 'hc' ? p.courseHandicap : p.strokesOff;
-  }
-
-  // Which players' balls are actually counting toward the team's low-ball net
-  // on one hole — the K lowest NET scores (see lowBallCountFor). Returns null
-  // when the hole isn't fully in for the team yet, since nothing counts until
-  // every member has posted. Exactly K are marked, never more: when two players
-  // tie on net only one is highlighted, because only one of them is needed to
-  // produce the team's number and marking both makes the card harder to read
-  // rather than more accurate. Ties resolve to whoever sits higher on the team
-  // list (sort is stable), so the same hole always highlights the same player.
-  function countingPlayerIdsOnHole(team, holeNum, scores, K, basis){
-    const nets = [];
-    for(const p of team){
-      const v = (scores[p.id] || {})[String(holeNum)];
-      if(typeof v !== 'number') return null;
-      nets.push({ id: p.id, net: v - strokesReceivedOnHole(betStrokesFor(p, basis), holeNum, p.tee) });
-    }
-    if(!nets.length) return null;
-    nets.sort((a, b) => a.net - b.net);
-    return new Set(nets.slice(0, Math.min(K, nets.length)).map(x => x.id));
   }
 
   function teamLowBallHoleNet(team, holeNum, scores, K, basis){
@@ -4383,28 +4144,6 @@
     return `<div class="ts-warn-banner"><b>Heads up:</b> this looks like it's open outside Claude, so changes won't save or sync for others. Open it from the file card in the chat instead.</div>`;
   }
 
-  // Kept on the app root rather than baked into each element's markup, so the
-  // setting survives every re-render without every template having to know
-  // about it.
-  // Only moves the landing tab while the app is still sitting on its startup
-  // default — never yanks someone off a tab they chose themselves (the cached
-  // paint and the real load both call this, and the second call must not undo
-  // a tap made in between).
-  let landingSectionChosen = false;
-  function chooseLandingSection(){
-    if(landingSectionChosen) return;
-    if(activeSection !== 'schedule') return;
-    if(Object.keys(data.teams || {}).length > 0){
-      activeSection = 'scoring';
-      landingSectionChosen = true;
-    }
-  }
-
-  function applyBigControlsClass(){
-    if(!root) return;
-    root.classList.toggle('ts-big-controls', bigControls);
-  }
-
   function testBannerHtml(){
     if(!IS_TEST_ENV) return '';
     return `<div class="ts-test-banner">⚠ Test version — recent data needs to be uploaded. Changes here don't affect the live app.</div>`;
@@ -4726,31 +4465,61 @@
   function renderScoringPanel(el){
 
     const teamDates = Object.keys(data.teams).sort();
-    if(teamDates.length === 0){
+    const upcomingKey = nextPlayDateKey();
+    // The Round dropdown below always offers the upcoming play date too, even
+    // before teams have been generated for it — so it can be picked, "Number
+    // of tee times" adjusted, and "Generate suggested teams now" reached, all
+    // from this same dropdown, instead of some date needing teams already for
+    // the dropdown to show up at all.
+    const availableDates = (upcomingKey && !teamDates.includes(upcomingKey))
+      ? teamDates.concat([upcomingKey]).sort()
+      : teamDates;
+    if(availableDates.length === 0){
       el.innerHTML = `
         <div class="ts-roster-panel">
           <h4 style="margin:0 0 4px;">Set up</h4>
-          ${generateTeamsBlockHtml(true)}
-          <p class="ts-empty" style="margin-top:14px;">Once teams are generated, come back here to review them, swap players, and start scoring.</p>
+          <p class="ts-empty">No upcoming play date yet — once one has signups, come back here to generate teams and start scoring.</p>
         </div>`;
       return;
     }
-    if(!scoringSelectedDate || !teamDates.includes(scoringSelectedDate)){
-      // Default to TODAY when there's a round today — that's the day anyone is
-      // opening this tab to actually use it. Otherwise fall back to the most
-      // recent round that's already happened (so the morning after, you land on
-      // the card you just played rather than a future date with no scores on
-      // it), and only then to the latest date on file.
-      const todayKey = fmtDateKey(new Date());
-      const pastOrToday = teamDates.filter(k => k <= todayKey);
-      scoringSelectedDate = teamDates.includes(todayKey)
-        ? todayKey
-        : (pastOrToday.length ? pastOrToday[pastOrToday.length - 1] : teamDates[teamDates.length - 1]);
+    if(!scoringSelectedDate || !availableDates.includes(scoringSelectedDate)){
+      scoringSelectedDate = availableDates[availableDates.length - 1];
     }
     const dateKey = scoringSelectedDate;
-    const teamsInfo = data.teams[dateKey];
+    const teamsInfo = data.teams[dateKey] || null;
     const d = new Date(dateKey + 'T00:00:00');
     const dateLabel = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
+
+    const dateOptionsHtml = availableDates.slice().reverse().map(k => {
+      const kd = new Date(k + 'T00:00:00');
+      const label = `${DOW_NAMES[kd.getDay()]}, ${MON_NAMES[kd.getMonth()]} ${kd.getDate()}`;
+      return `<option value="${k}" ${k===dateKey?'selected':''}>${label}${data.teams[k] ? '' : ' — no teams yet'}</option>`;
+    }).join('');
+
+    // The selected date hasn't had teams generated yet (only possible for the
+    // upcoming date — see availableDates above) — show just the Round
+    // dropdown plus "Number of tee times"/Generate, instead of the full Teams/
+    // Live Scoring/Scoreboard view below, which has nothing to show until
+    // teams exist. Starting hole/Stake/Game/Handicap basis (further down,
+    // once teams exist) don't need setting yet either — Starting hole in
+    // particular is normally only decided the morning of play.
+    if(!teamsInfo){
+      el.innerHTML = `
+        <div class="ts-roster-panel">
+          <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
+            <span class="ts-import-row-label">Round</span>
+            <div style="margin-top:6px;">
+              <select id="ts-scoring-date-select" style="font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
+                ${dateOptionsHtml}
+              </select>
+            </div>
+          </div>
+          <h4 style="margin:16px 0 4px;">Set up</h4>
+          ${generateTeamsBlockHtml(true)}
+          <p class="ts-empty" style="margin-top:14px;">Once teams are generated for ${esc(dateLabel)}, come back here to review them, swap players, and start scoring.</p>
+        </div>`;
+      return;
+    }
 
     const round = ensureRoundDefaults(dateKey);
     const groups = seriesHoleGroups(round.startHole);
@@ -4761,11 +4530,6 @@
     const gameLabel = round.game === '1ball' ? '1-ball' : '2-ball';
     const exact = holeHandicapsCompleteForTeams(teamsInfo);
     const seasonStandings = computeSeasonStandings();
-
-    const dateOptionsHtml = teamDates.slice().reverse().map(k => {
-      const kd = new Date(k + 'T00:00:00');
-      return `<option value="${k}" ${k===dateKey?'selected':''}>${DOW_NAMES[kd.getDay()]}, ${MON_NAMES[kd.getMonth()]} ${kd.getDate()}</option>`;
-    }).join('');
 
     // Teams list, right under Round setup — every generated team's players plus
     // anyone not playing, with handicap/strokes-off/tee for reference. The tee
@@ -4822,56 +4586,14 @@
     // Match scoreboard is read-only — a summary to glance at, not where scores get
     // entered (that's Live scoring only, one hole at a time, so there's exactly one
     // place to type a number and no risk of two views fighting over the same cell).
-    // Shows ALL series in one card, scrolled sideways, rather than a tab per
-    // series — the series a player wants is usually not the one the tab
-    // happens to be on, and remembering which tab you're looking at is one
-    // more thing to hold onto mid-round. The name column is pinned (see
-    // .ts-score-name in the stylesheet) and each series starts with a divider,
-    // so scrolling out to hole 18 never loses track of whose row it is.
-    const scoreboardHoles = flatHoles;
-    // First hole of each series — gets the divider line and starts a labelled
-    // span in the header.
-    const seriesStartHoles = new Set(groups.map(g => g[0]));
-    const seriesStartCls = (h) => seriesStartHoles.has(h) ? ' ts-series-start' : '';
-    // Which ball counts, per team per hole — worked out once here and reused by
-    // both the Scoreboard card and Live Scoring's Scorecards section, so the
-    // two can never disagree about how a team reached its number.
-    const betK = lowBallCountFor(round.game);
-    const countingByTeamHole = teamsInfo.teams.map(team => {
-      const map = {};
-      if(exact) flatHoles.forEach(h => { map[h] = countingPlayerIdsOnHole(team, h, round.scores || {}, betK, round.handicapBasis); });
-      return map;
-    });
-    const countsCls = (ti, h, pid) => {
-      const set = countingByTeamHole[ti] && countingByTeamHole[ti][h];
-      return (set && set.has(pid)) ? ' ts-counts' : '';
-    };
-    // All three series' holes in order, then ONE total column at the far right
-    // — the full 18-hole score, which is the number that actually gets posted
-    // after the round. A subtotal after every six holes was three extra columns
-    // to scroll past for a number nobody reads off the card.
-    const seriesColsHtml = (cellFor, totalFor) => groups.map((g, si) =>
-      g.map(h => cellFor(h, si)).join('')
-    ).join('') + totalFor();
-    const seriesKeyHtml = `
-      <p class="ts-counts-key">
-        <span class="ts-key-item"><span class="ts-key-swatch"></span>counts toward the team's ${gameLabel} net</span>
-        <span class="ts-key-item"><span class="ts-key-swatch ts-key-swatch-stroke"></span>player gets a stroke there</span>
-      </p>`;
-    const teamCardsByIndex = teamsInfo.teams.map((team, ti) => {
+    // Shows one series at a time (see the toggle in the outer template below) so
+    // it doesn't need to be scrolled sideways past 18 columns to see Series 2/3.
+    if(scoreboardSeriesFilter < 0 || scoreboardSeriesFilter >= groups.length) scoreboardSeriesFilter = 0;
+    const scoreboardHoles = groups[scoreboardSeriesFilter] || flatHoles;
+    const teamCardsHtml = teamsInfo.teams.map((team, ti) => {
       const rowsHtml = team.map(p => {
         const playerScores = round.scores[p.id] || {};
-        // Gross so far: every stroke this player has actually posted today.
-        // Shown under the name, in the pinned column, so it's readable without
-        // scrolling anywhere — the quickest possible answer to "what did he
-        // shoot?" Counts posted holes only, so it reads as a running total
-        // mid-round rather than pretending unplayed holes were pars.
-        const grossHoles = scoreboardHoles.filter(h => typeof playerScores[String(h)] === 'number');
-        const gross = grossHoles.reduce((sum, h) => sum + playerScores[String(h)], 0);
-        const grossHtml = grossHoles.length
-          ? `<span class="ts-score-gross">${gross} gross${grossHoles.length < scoreboardHoles.length ? ` (${grossHoles.length} hole${grossHoles.length===1?'':'s'})` : ''}</span>`
-          : '';
-        const cellsHtml = seriesColsHtml((h) => {
+        const cellsHtml = scoreboardHoles.map(h => {
           const v = playerScores[String(h)];
           const played = typeof v === 'number';
           const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
@@ -4884,37 +4606,35 @@
           // team that never posts can never quietly "complete" a series —
           // teamLowBallHoleNet/computeSeriesStandings treat a missing score
           // as incomplete, not as par, so that team simply can't win it.
-          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}${seriesStartCls(h)}${countsCls(ti, h, p.id)}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
-        }, () => `<td class="ts-series-total">${grossHoles.length ? gross : ''}</td>`);
+          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
+        }).join('');
         // Just a label here, not a control — switching tees happens in Set up
         // & Bets before the round starts, so there's one place to change it.
         const teeLabelHtml = p.tee ? `<br><span class="ts-team-so">${esc(p.tee)}</span>` : '';
-        return `<tr><td class="ts-score-name">${esc(p.name)}${p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : ''}${teeLabelHtml}${grossHtml}</td>${cellsHtml}</tr>`;
+        return `<tr><td class="ts-score-name">${esc(p.name)}${p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : ''}${teeLabelHtml}</td>${cellsHtml}</tr>`;
       }).join('');
 
       const runningForTeam = lowBallHoleRunning ? lowBallHoleRunning[ti] : null;
       const runningRowHtml = runningForTeam ? `
         <tr class="ts-lowball-row">
           <td class="ts-score-name">${gameLabel} vs par</td>
-          ${seriesColsHtml((h) => `<td class="${seriesStartCls(h).trim()}">${typeof runningForTeam[h] === 'number' ? fmtRelToPar(runningForTeam[h]) : ''}</td>`, () => '<td class="ts-series-total"></td>')}
+          ${scoreboardHoles.map(h => `<td>${typeof runningForTeam[h] === 'number' ? fmtRelToPar(runningForTeam[h]) : ''}</td>`).join('')}
         </tr>` : '';
 
       return `
         <div class="ts-teams-block" style="margin-top:16px;">
           <div class="ts-team-num">Team ${ti+1}</div>
-          <div class="ts-score-scroll">
+          <div style="overflow-x:auto;">
             <table class="ts-score-table">
               <thead>
-                <tr class="ts-series-head"><th class="ts-score-name-head"></th>${groups.map((g, si) => `<th colspan="${g.length}" class="ts-series-start">Series ${si+1}</th>`).join('')}<th class="ts-series-total"></th></tr>
-                <tr><th class="ts-score-name-head">Hole number</th>${seriesColsHtml((h) => `<th class="${seriesStartCls(h).trim()}">${h}</th>`, () => '<th class="ts-series-total">Total</th>')}</tr>
-                ${Object.keys(data.holePars).length ? `<tr class="ts-par-row"><th class="ts-score-name-head">Par</th>${seriesColsHtml((h) => `<th class="${seriesStartCls(h).trim()}">${typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : ''}</th>`, () => `<th class="ts-series-total">${flatHoles.every(h => typeof data.holePars[String(h)] === 'number') ? flatHoles.reduce((sum, h) => sum + data.holePars[String(h)], 0) : ''}</th>`)}</tr>` : ''}
+                <tr><th>Hole number</th>${scoreboardHoles.map(h => `<th>${h}</th>`).join('')}</tr>
+                ${Object.keys(data.holePars).length ? `<tr class="ts-par-row"><th>Par</th>${scoreboardHoles.map(h => `<th>${typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : ''}</th>`).join('')}</tr>` : ''}
               </thead>
               <tbody>${rowsHtml}${runningRowHtml}</tbody>
             </table>
           </div>
         </div>`;
-    });
-    const teamCardsHtml = teamCardsByIndex.join('');
+    }).join('');
 
     // Hole-by-hole view: every player on a team for this date, one hole at a
     // time. Nothing typed here reaches the backend until "Post scores" is
@@ -4933,7 +4653,7 @@
     // switching holes (or dates) always starts clean, so a stray edit can
     // never leak onto the wrong hole.
     const hbhDraftKeyNow = `${dateKey}::${hbhHole}`;
-    if(hbhDraftKeyNow !== hbhDraftKey){ hbhDraft = {}; hbhSeededIds = new Set(); hbhDraftKey = hbhDraftKeyNow; }
+    if(hbhDraftKeyNow !== hbhDraftKey){ hbhDraft = {}; hbhDraftKey = hbhDraftKeyNow; }
 
     // Every player on a team for this date — there's no way to know scores for
     // anyone not on a team, so that's the only group Live Scoring ever shows.
@@ -4984,23 +4704,53 @@
     // group they're standing with.
     const myTeamIndex = meId ? teamsInfo.teams.findIndex(team => team.some(p => p.id === meId)) : -1;
 
-    // Live Scoring's own "Scorecards" section — the SAME series-split cards the
-    // Scoreboard tab shows (series totals, counting ball highlighted, pinned
-    // name column), just reordered so the viewer's own team comes first and is
-    // labelled "(mine)". Built from the same teamCardsHtml pieces rather than a
-    // parallel Front 9 / Back 9 layout, so there's one card design in the app
-    // and the two views can't drift apart. Open by default now: the whole point
-    // of it is answering "where do we stand?" without leaving score entry, and
-    // making that a tap away meant most people never saw it.
+    // Live Scoring's own "Scorecards" section — one full hole 1-18 card per
+    // team (viewer's own team first, labeled "(mine)"), showing whatever's
+    // actually been posted so far. Unlike teamCardsHtml above (Scoreboard tab,
+    // one series/6 holes at a time), this always shows all 18 in natural hole
+    // order, laid out like a real scorecard (Front 9 / Back 9 / Total), so
+    // checking in on every team's progress without leaving Live Scoring
+    // doesn't mean flipping between series. Collapsed by default (see
+    // liveScorecardsOpen) since it's a look-up, not part of entering scores.
+    const scorecardAllHoles = Array.from({ length: 18 }, (_, i) => i + 1);
+    const scorecardParsKnown = scorecardAllHoles.every(h => typeof data.holePars[String(h)] === 'number');
+    const scorecardParTotal = scorecardParsKnown ? scorecardAllHoles.reduce((sum, h) => sum + data.holePars[String(h)], 0) : null;
     const teamOrderForCards = myTeamIndex !== -1
       ? [myTeamIndex, ...teamsInfo.teams.map((_, ti) => ti).filter(ti => ti !== myTeamIndex)]
       : teamsInfo.teams.map((_, ti) => ti);
-    const liveScorecardsHtml = teamOrderForCards
-      .map(ti => teamCardsByIndex[ti] ? teamCardsByIndex[ti].replace(
-        `>Team ${ti + 1}<`,
-        `>Team ${ti + 1}${ti === myTeamIndex ? ' <span class="ts-team-so">(mine)</span>' : ''}<`
-      ) : '')
-      .join('');
+    const liveScorecardsHtml = teamOrderForCards.map(ti => {
+      const team = teamsInfo.teams[ti];
+      if(!team || !team.length) return '';
+      const rowsHtml = team.map(p => {
+        const playerScores = round.scores[p.id] || {};
+        let total = 0;
+        const cellsHtml = scorecardAllHoles.map(h => {
+          const v = playerScores[String(h)];
+          const played = typeof v === 'number';
+          if(played) total += v;
+          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
+          const strokeTitle = strokesHere > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokesHere} stroke${strokesHere===1?'':'s'} here"` : '';
+          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
+        }).join('');
+        const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
+        const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
+        return `<tr><td class="ts-score-name">${esc(p.name)}${teeNote}${soNote}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
+      }).join('');
+      return `
+        <div class="ts-scorecard-block">
+          <div class="ts-team-num">Team ${ti + 1}${ti === myTeamIndex ? ' <span class="ts-team-so">(mine)</span>' : ''}</div>
+          <div style="overflow-x:auto;">
+            <table class="ts-scorecard-table">
+              <thead>
+                <tr><th></th><th colspan="9">Front 9</th><th colspan="9">Back 9</th><th></th></tr>
+                <tr><th>Hole</th>${scorecardAllHoles.map(h => `<th>${h}</th>`).join('')}<th>Total</th></tr>
+                <tr class="ts-par-row"><th>Par</th>${scorecardAllHoles.map(h => `<th>${typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : ''}</th>`).join('')}<th>${scorecardParTotal !== null ? scorecardParTotal : ''}</th></tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('');
 
     const teamFilterHtml = showScopeFilter ? `
       <div style="margin-bottom:10px;">
@@ -5013,27 +4763,16 @@
       </div>` : (filteredToScope ? `
       <div style="margin-bottom:10px; font-size:12px; color:#6b6a5e; font-weight:500;">Showing: ${scopeWord} ${scopeFilter+1} <span style="font-weight:400;">— your ${groupsMode ? 'group' : 'team'}</span></div>` : '');
 
-    // Every box starts at the hole's par, so a par takes no taps at all and
-    // anything else is one or two taps of − / + from there. This is a display
-    // default only: it sits in hbhDraft marked as "seeded" (hbhSeededIds), and
-    // is only ever posted when the scorer moves FORWARD off the hole with ›,
-    // which is the deliberate "this hole is done" action. Going back to look
-    // at an earlier hole, or jumping around with the hole picker, never posts
-    // a seeded par — so a hole nobody actually played still stays unplayed and
-    // the Match scoreboard still hatches it rather than inventing a score.
-    // Clearing a box on purpose sticks too: an empty draft value is a real
-    // value here, not a blank to re-seed.
+    // No more silent par pre-fill — a box that's never been tapped stays
+    // truly empty (see hbhRowHtml below), and the Match scoreboard shows a
+    // hatched "not played" cell for it instead of a number nobody actually
+    // entered.
     const hbhRowHtml = (p) => {
       const committed = (round.scores[p.id] || {})[String(hbhHole)];
-      // A draft edit (something typed, stepped, or the par pre-fill from this
+      // A draft edit (something typed, stepped, or tap-defaulted-to-par this
       // visit, not yet posted) always wins over whatever's already on file;
-      // otherwise show the already-posted value.
-      let draftVal = hbhDraft[p.id];
-      if(draftVal === undefined && typeof committed !== 'number' && hbhPar !== null){
-        draftVal = String(hbhPar);
-        hbhDraft[p.id] = draftVal;
-        hbhSeededIds.add(p.id);
-      }
+      // otherwise show the already-posted value, or blank if there is none.
+      const draftVal = hbhDraft[p.id];
       const displayVal = draftVal !== undefined ? draftVal : (typeof committed === 'number' ? String(committed) : '');
       const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), hbhHole, p.tee) : 0;
       const inputId = `ts-hbh-score-${p.id}`;
@@ -5045,12 +4784,12 @@
       const hybridTeeHere = hybridTeeForHole(p.tee, hbhHole);
       const hybridNote = hybridTeeHere ? ` <span class="ts-team-so">Hit from ${esc(hybridTeeHere)} tees</span>` : '';
       return `
-        <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
-            <div class="ts-hbh-player-name">${esc(p.name)}</div>
-            <div class="ts-hbh-player-note">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
+            <div style="font-weight:600; font-size:15px;">${esc(p.name)}</div>
+            <div style="font-size:11.5px; color:#8b8a7c;">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · gets a stroke here' : ''}${hybridNote}</div>
           </div>
-          <div class="ts-hbh-controls" style="display:flex; align-items:center; gap:6px;">
+          <div style="display:flex; align-items:center; gap:6px;">
             <button type="button" class="ts-score-step" data-step-for="${inputId}" data-step-dir="-1" data-hbh-score-player="${p.id}" data-hbh-par="${hbhPar !== null ? hbhPar : ''}">−</button>
             <span class="ts-score-cell-wrap">
               <input type="number" inputmode="numeric" min="1" max="15" step="1" id="${inputId}" class="ts-score-input ts-score-input-lg ts-hbh-score-input${strokesHere > 0 ? ' ts-score-stroke' : ''}"
@@ -5070,16 +4809,9 @@
     // straight to one via the hole picker) is never silently lost; there's
     // no separate Post button. On the last hole, › still saves but has
     // nowhere further to advance to.
-    // Scores post in the background now, so by the time one fails the scorer
-    // has usually already moved on — a banner about only the hole currently on
-    // screen would miss it. List every hole for this date still waiting to
-    // reach the backend instead.
-    const unsavedHolesHere = Array.from(unsavedHoleKeys)
-      .filter(k => k.indexOf(`${dateKey}::`) === 0)
-      .map(k => k.split('::')[1])
-      .sort((a,b) => parseInt(a,10) - parseInt(b,10));
-    const unsavedBannerHtml = unsavedHolesHere.length ? `
-      <div class="ts-unsaved-banner">⚠ ${unsavedHolesHere.length === 1 ? `Hole ${unsavedHolesHere[0]} hasn't` : `Holes ${unsavedHolesHere.join(', ')} haven't`} saved yet — ${unsavedHolesHere.length === 1 ? 'it' : 'they'}'ll retry automatically. Your entries are safe on this phone in the meantime. <button type="button" class="ts-unsaved-retry" data-retry-unsaved="1" style="color:var(--rust); font-size:12.5px;">Tap to retry now</button></div>` : '';
+    const hbhUnsaved = unsavedHoleKeys.has(holePostKey(dateKey, hbhHole));
+    const unsavedBannerHtml = hbhUnsaved ? `
+      <div class="ts-unsaved-banner">⚠ This hole didn't save yet — it'll retry automatically. <button type="button" class="ts-unsaved-retry" data-retry-unsaved="1" style="color:var(--rust); font-size:12.5px;">Tap to retry now</button></div>` : '';
 
     const hbhRowsHtml = visibleRoundPlayers.map(hbhRowHtml).join('');
 
@@ -5124,8 +4856,7 @@
           <button type="button" class="ts-duty-sort-btn" id="ts-live-scorecards-toggle">${liveScorecardsOpen ? 'Collapse' : 'Expand'}</button>
         </div>
         ${liveScorecardsOpen ? `
-          <p style="margin:0 0 4px; font-size:12px; color:#6b6a5e;">Every team's card, split by series, with the 18-hole total at the far right — updates as scores come in. Your team is first.</p>
-          ${seriesKeyHtml}
+          <p style="margin:0 0 10px; font-size:12px; color:#6b6a5e;">Every team's card, hole 1 to 18, with whatever's been posted so far — updates as scores come in.</p>
           ${liveScorecardsHtml || '<p class="ts-empty">No teams to show yet.</p>'}` : ''}
       </div>`;
 
@@ -5280,17 +5011,15 @@
           ${seasonStandingsHtml}
         ` : scoringViewMode === 'scoreboard' ? `
           <h4 style="margin:16px 0 4px;">Match Scoreboard</h4>
-          <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Every team's card, each player's gross, and the bet's series-by-series results for ${esc(dateLabel)} — read-only, for a glance at how the match stands. Separate from Live Scoring so entering scores doesn't mean scrolling past this.</p>
-          <p class="ts-scroll-hint">All ${groups.length} series on one card, with the 18-hole total at the far right — swipe the card sideways to see later holes. Each player's gross so far is also under their name.</p>
-          ${seriesKeyHtml}
+          <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Every team's card, running totals, and the bet's series-by-series results for ${esc(dateLabel)} — read-only, for a glance at how the match stands. Separate from Live Scoring so entering scores doesn't mean scrolling past this.</p>
+          <div class="ts-subtabbar" style="margin-bottom:4px;">
+            ${groups.map((holes, si) => `<button class="ts-subtab ${scoreboardSeriesFilter===si?'active':''}" data-scoreboard-series="${si}">Series ${si+1}</button>`).join('')}
+          </div>
           ${teamCardsHtml}
           ${lowBallProgressHtml}
           ${standingsHtml}
         ` : `
           <h4 style="margin:16px 0 4px;">Live Scoring</h4>
-          <div style="margin:0 0 8px;">
-            <button type="button" id="ts-big-controls-toggle" class="ts-size-toggle${bigControls ? ' active' : ''}" aria-pressed="${bigControls ? 'true' : 'false'}">${bigControls ? '✓ Bigger buttons on' : 'Bigger buttons'}</button>
-          </div>
           <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Enter each player's score below, then tap › to move to the next hole (or ‹ to go back and check an earlier one) — either arrow saves what's on screen first, so a fix always sticks no matter which way you navigate away from it.</p>
           ${holeByHoleHtml}
         `}
@@ -6275,22 +6004,19 @@
       });
       input.addEventListener('input', () => {
         hbhDraft[playerId] = input.value;
-        hbhSeededIds.delete(playerId); // hand-entered now, not the par pre-fill
       });
       input.addEventListener('change', async () => {
         const raw = input.value.trim();
-        if(raw === ''){ hbhDraft[playerId] = ''; hbhSeededIds.delete(playerId); return; }
+        if(raw === ''){ hbhDraft[playerId] = ''; return; }
         const n = parseInt(raw, 10);
         if(isNaN(n) || n < 1 || n > 15){
           await showMessage('Not a valid score', 'Enter a whole number of strokes between 1 and 15, or leave it blank.');
           input.value = '';
           hbhDraft[playerId] = '';
-          hbhSeededIds.delete(playerId);
           return;
         }
         input.value = n;
         hbhDraft[playerId] = String(n);
-        hbhSeededIds.delete(playerId);
       });
     });
 
@@ -6708,17 +6434,8 @@
     // before. Returns false (and stays put) if a bad entry needs fixing
     // first, or if the save itself failed (it's queued for automatic retry
     // either way — see postHoleScores/unsavedHoleKeys).
-    // opts.includeSeeded — true only when leaving the hole FORWARD via ›, the
-    // deliberate "this hole is finished" action. That's when the automatic par
-    // pre-fill counts as a real entry for everyone who didn't need changing.
-    // Moving backwards, or jumping with the hole picker, posts only boxes a
-    // person actually touched, so reviewing earlier holes can't stamp pars
-    // onto holes that were never played.
-    async function saveCurrentHoleIfDirty(opts){
-      const includeSeeded = !!(opts && opts.includeSeeded);
-      const touchedIds = Object.keys(hbhDraft).filter(id => !hbhSeededIds.has(id));
-      const seededCount = Object.keys(hbhDraft).filter(id => hbhSeededIds.has(id)).length;
-      if(!touchedIds.length && !(includeSeeded && seededCount)) return true; // nothing to save
+    async function saveCurrentHoleIfDirty(){
+      if(!Object.keys(hbhDraft).length) return true; // nothing touched here — nothing to save
       const nextBtn = document.getElementById('ts-hbh-next-hole');
       if(!nextBtn || !nextBtn.hasAttribute('data-post-ids')) return true; // nobody to post for
       const dateKeyAttr = nextBtn.getAttribute('data-post-date');
@@ -6742,27 +6459,16 @@
         entries.push({ playerId: id, strokes: n });
       }
 
-      // Post in the background instead of blocking on it. postHoleScores
-      // applies the scores to local state synchronously before it ever touches
-      // the network, so the scorecard, the bet status and the next hole are
-      // all correct the instant this returns — and on a weak signal the app
-      // stays usable instead of freezing on every hole while a 30-second Apps
-      // Script round trip finishes. A failure still flags the hole and queues
-      // the automatic retry exactly as before; the banner just appears a
-      // moment later, once it's actually known to have failed.
-      postHoleScores(dateKeyAttr, holeNum, entries).then(ok => {
-        if(!ok && !scoringBusy()) render();
-      });
+      const ok = await postHoleScores(dateKeyAttr, holeNum, entries);
       hbhDraft = {};
-      hbhSeededIds = new Set();
-      return true;
+      return ok;
     }
 
     const hbhPrevBtn = document.getElementById('ts-hbh-prev-hole');
     if(hbhPrevBtn){
       hbhPrevBtn.addEventListener('click', async () => {
         hbhPrevBtn.disabled = true;
-        const ok = await saveCurrentHoleIfDirty({ includeSeeded: false });
+        const ok = await saveCurrentHoleIfDirty();
         if(ok) scoringHoleIndex = Math.max(0, scoringHoleIndex - 1);
         render();
       });
@@ -6784,7 +6490,7 @@
         // renderScoringPanel clamps scoringHoleIndex back to the last hole
         // automatically if this was already the final one, so it's safe to
         // just always increment here on success.
-        const ok = await saveCurrentHoleIfDirty({ includeSeeded: true });
+        const ok = await saveCurrentHoleIfDirty();
         if(ok) scoringHoleIndex = scoringHoleIndex + 1;
         render();
       });
@@ -6793,7 +6499,7 @@
     if(hbhHoleSelect){
       hbhHoleSelect.addEventListener('change', async () => {
         const target = parseInt(hbhHoleSelect.value, 10) || 0;
-        const ok = await saveCurrentHoleIfDirty({ includeSeeded: false });
+        const ok = await saveCurrentHoleIfDirty();
         // On success, jump to whichever hole was picked. On failure, re-render
         // without changing scoringHoleIndex — this snaps the dropdown itself
         // back to the hole you were actually still on, since a bad entry (or a
@@ -6817,16 +6523,6 @@
         render();
       });
     }
-    const bigControlsToggle = document.getElementById('ts-big-controls-toggle');
-    if(bigControlsToggle){
-      bigControlsToggle.addEventListener('click', () => {
-        bigControls = !bigControls;
-        try{ localStorage.setItem(BIG_CONTROLS_KEY, bigControls ? 'true' : 'false'); }catch(e){}
-        applyBigControlsClass();
-        render();
-      });
-    }
-
     document.querySelectorAll('[data-scoreboard-series]').forEach(btn => {
       btn.addEventListener('click', () => {
         scoreboardSeriesFilter = parseInt(btn.getAttribute('data-scoreboard-series'), 10) || 0;
@@ -6849,10 +6545,7 @@
         if(next > 15) next = 15;
         input.value = next;
         const playerId = btn.getAttribute('data-hbh-score-player');
-        if(playerId){
-          hbhDraft[playerId] = String(next);
-          hbhSeededIds.delete(playerId); // deliberately stepped, not the par pre-fill
-        }
+        if(playerId) hbhDraft[playerId] = String(next);
       });
     });
 
@@ -7141,51 +6834,9 @@
     });
   }
 
-  // Resolves once the first real backend load has finished (successfully or
-  // not) — see init below. Anything that WRITES waits on this so it can never
-  // save on top of cache-only data.
-  let resolveFreshData;
-  const freshDataReady = new Promise(res => { resolveFreshData = res; });
-  let freshDataLanded = false;
-  function whenFreshData(){ return freshDataLanded ? Promise.resolve() : freshDataReady; }
-
   (async function init(){
-    // Paint from this device's cached copy first, if there is one, so the app
-    // opens immediately instead of holding on "setting the tee sheet…" for a
-    // full Apps Script round trip (which, on a phone at the course reading a
-    // blob this size, is most of the wait people were seeing). The real load
-    // runs right behind it and re-renders as soon as it lands.
-    const paintedFromCache = loadDataFromCache();
-    if(paintedFromCache){
-      // Decide the landing tab here too, not just after the real load — otherwise
-      // the cached paint opens on Upcoming Dates and visibly jumps to Scoring &
-      // Bets a moment later.
-      chooseLandingSection();
-      applyBigControlsClass();
-      try{ render(); }catch(e){ /* if anything about the cached shape is off, the real load re-renders below */ }
-    }
-
     await loadData();
-    freshDataLanded = true;
-    resolveFreshData();
-    if(bootError && paintedFromCache){
-      // Opened fine from this device's cached copy, but the backend couldn't be
-      // reached to confirm it. Say so plainly rather than passing possibly
-      // stale data off as current.
-      const notice = document.createElement('div');
-      notice.className = 'ts-unsaved-banner';
-      notice.style.cssText = 'position:fixed; left:10px; right:10px; bottom:10px; z-index:9999; text-align:center;';
-      notice.innerHTML = "⚠ Showing this device's last saved copy — couldn't reach the server just now. ";
-      const reloadBtn = document.createElement('button');
-      reloadBtn.type = 'button';
-      reloadBtn.className = 'ts-unsaved-retry';
-      reloadBtn.style.cssText = 'color:var(--rust); font-size:12.5px;';
-      reloadBtn.textContent = 'Try again';
-      reloadBtn.onclick = () => window.location.reload();
-      notice.appendChild(reloadBtn);
-      document.body.appendChild(notice);
-    }
-    if(bootError && !paintedFromCache){
+    if(bootError){
       // Couldn't reach the backend at all on this, the very first load — show a
       // clear retry screen instead of either hanging on "setting the tee sheet…"
       // forever, or (worse) silently rendering the empty-roster "Set up your
@@ -7200,14 +6851,6 @@
       if(retryBtn) retryBtn.onclick = () => window.location.reload();
       return;
     }
-    // Land on Scoring & Bets when there's a round to look at. Upcoming Dates
-    // gets visited every few weeks; Scoring & Bets gets visited every time
-    // anyone plays — so it's the sensible front door, and opening straight to
-    // it removes the "which tab was it again?" moment at the first tee. Falls
-    // back to Upcoming Dates when no teams have been generated yet, since the
-    // scoring tab would have nothing to show.
-    chooseLandingSection();
-    applyBigControlsClass();
     render();
     await reverifyIfNeeded();
     await autoIdentifyIfNeeded();
