@@ -1088,7 +1088,7 @@
     Object.assign(data.rounds[dateKey], patch);
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_round_settings`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ dateKey, patch })
@@ -1099,6 +1099,47 @@
         if(typeof parsed.lastModified === 'number'){ data._lastModified = parsed.lastModified; lastKnownModified = parsed.lastModified; }
       }
     }catch(e){ /* best-effort */ }
+  }
+
+  // Scoped save for "Generate/Regenerate teams" — sends only the one date's
+  // newly-computed teams instead of the entire app data blob (which
+  // saveData()/saveSharedData() would send). That full blob now carries a
+  // whole season's worth of roster/signup/round history, and re-uploading
+  // all of it just to add one date's teams is exactly the kind of large,
+  // slow save that a weak course connection can fail outright ("Failed to
+  // fetch") — the same reason save_hole_scores/save_round_settings exist
+  // instead of routing scoring through the full-blob save. Retries like
+  // saveData() does, and only shows its own failure message once every
+  // attempt is exhausted.
+  async function postTeams(dateKey, teamsInfo, teamsAccepted){
+    const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_teams`;
+    const maxAttempts = 3;
+    let lastError = null;
+    for(let attempt = 1; attempt <= maxAttempts; attempt++){
+      try{
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ dateKey, teamsInfo, teamsAccepted })
+        });
+        const parsed = JSON.parse(await res.text());
+        if(parsed && parsed.error) throw new Error(parsed.error);
+        if(parsed && typeof parsed.lastModified === 'number'){
+          data._lastModified = parsed.lastModified;
+          lastKnownModified = parsed.lastModified;
+        }
+        return true;
+      }catch(e){
+        lastError = e;
+        if(attempt < maxAttempts) await new Promise(r => setTimeout(r, 400 * attempt));
+      }
+    }
+    console.error('Could not save teams', lastError);
+    await showMessage(
+      "Save didn't go through",
+      (lastError && lastError.message) || "Something went wrong saving — what you see here may not have reached the server. Try again in a moment."
+    );
+    return false;
   }
 
   let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [] };
@@ -2561,9 +2602,9 @@
     // "Accept teams after swapping players" click (see the team-assignment
     // checkbox handler, which sets this back to false).
     round.teamsAccepted = true;
-    const saved = await saveData();
+    const saved = await postTeams(key, result, true);
     if(!saved){
-      // saveData() already told the admin the save didn't go through — don't
+      // postTeams() already told the admin the save didn't go through — don't
       // leave this optimistic change in place. Otherwise the screen would
       // look like teams were generated (or a "Teams generated" message could
       // wrongly follow the failure message) right up until the next
