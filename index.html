@@ -781,7 +781,11 @@
     const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}`;
     // Content-Type text/plain avoids a CORS preflight that Apps Script Web Apps
     // don't handle well — the server still parses the body as JSON regardless.
-    const res = await fetch(url, {
+    // Uses fetchWithTimeout (like every other network call in the app) so a
+    // hung request on a weak connection fails fast and retries, instead of
+    // sitting unresolved until the browser/OS eventually kills it with a raw
+    // "Failed to fetch" and no controlled way to react.
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(obj)
@@ -1473,9 +1477,16 @@
     return true;
   }
 
+  // Returns true once the save has actually reached the server, false if it
+  // never did (after showing its own failure message, or the admin chose to
+  // reload instead of continuing over a stale-data warning). Callers that do
+  // optimistic local updates before calling this — like team generation —
+  // need this to know whether to keep or roll back that local change; every
+  // existing caller that doesn't check the return value keeps working exactly
+  // as before.
   async function saveData(){
     const ok = await checkNotStale();
-    if(!ok) return;
+    if(!ok) return false;
     data._lastModified = Date.now();
     const maxAttempts = 3;
     let lastError = null;
@@ -1483,7 +1494,7 @@
       try{
         await saveSharedData(data);
         lastKnownModified = data._lastModified;
-        return;
+        return true;
       }catch(e){
         lastError = e;
         // A deliberate refusal (like the backend's drastic-shrink safety net) will
@@ -1502,6 +1513,7 @@
       "Save didn't go through",
       (lastError && lastError.message) || "Something went wrong saving — what you see here may not have reached the server. Try again in a moment."
     );
+    return false;
   }
   async function persistMe(id){
     meId = id;
@@ -2536,14 +2548,31 @@
     }
     const result = computeTeamsForDate(key);
     if(!result) return null;
+    // Remember what was here before, so a failed save can be rolled back
+    // instead of leaving the in-memory app state claiming teams exist when
+    // the server never actually got them.
+    const previousTeams = data.teams[key];
+    const round = ensureRoundDefaults(key);
+    const previousAccepted = round.teamsAccepted;
     data.teams[key] = result;
     // A fresh (re)generation hasn't been touched by anyone yet, so there's
     // nothing pending to confirm — Live Scoring can show it immediately.
     // Swapping a player afterward is what should require a deliberate
     // "Accept teams after swapping players" click (see the team-assignment
     // checkbox handler, which sets this back to false).
-    ensureRoundDefaults(key).teamsAccepted = true;
-    await saveData();
+    round.teamsAccepted = true;
+    const saved = await saveData();
+    if(!saved){
+      // saveData() already told the admin the save didn't go through — don't
+      // leave this optimistic change in place. Otherwise the screen would
+      // look like teams were generated (or a "Teams generated" message could
+      // wrongly follow the failure message) right up until the next
+      // background refresh silently wiped it and the admin ended up back on
+      // the "no teams yet" screen with no idea why.
+      if(previousTeams === undefined) delete data.teams[key]; else data.teams[key] = previousTeams;
+      round.teamsAccepted = previousAccepted;
+      return 'save-failed';
+    }
     return key;
   }
 
@@ -4507,7 +4536,7 @@
         <span class="ts-import-row-label">Review prior rounds</span>
         <div style="margin-top:6px;">
           <select id="ts-review-date-select" style="font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
-            <option value="">${upcomingKey ? `— current round (${upcomingDateLabel}) —` : '— current round —'}</option>
+            <option value="">${upcomingKey ? `— ${upcomingDateLabel} round —` : '— current round —'}</option>
             ${priorOptionsHtml}
           </select>
         </div>
@@ -5859,6 +5888,9 @@
         const key = await generateTeamsForNextPlayDay(confirmOverwrite);
         if(key === 'cancelled'){
           // admin backed out — nothing to do
+        } else if(key === 'save-failed'){
+          // saveData() already showed its own "Save didn't go through" message
+          // — don't follow it with a contradictory "Teams generated" one.
         } else if(!key){
           await showMessage('Nothing to generate', 'No upcoming play day has any signups yet.');
         } else {
