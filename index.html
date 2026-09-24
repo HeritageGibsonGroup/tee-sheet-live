@@ -727,7 +727,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'September 22, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'September 24, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1142,7 +1142,7 @@
     return false;
   }
 
-  let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [] };
+  let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
   // Set when the very first load couldn't reach the backend at all (network hiccup,
   // or the fetch timing out per FETCH_TIMEOUT_MS above) — distinct from a
   // successful load that happens to find an empty roster, so init() can show a
@@ -1457,6 +1457,12 @@
     if(typeof data.adminPin === 'undefined') data.adminPin = null;
     if(!data.guestPin) data.guestPin = '3672';
     if(!data.activityLog) data.activityLog = [];
+    // Non-roster addresses that get the "playing tomorrow" reminder alongside
+    // every roster player with an email on file — pro shop staff, etc. Seeded
+    // once, the first time this field ever loads, with whatever was already
+    // hardcoded on the backend (Code.gs SIGNUP_REMINDER_EXTRA_EMAILS); from
+    // then on it's just a normal saved value, editable from Admin > Reminders.
+    if(!data.extraReminderEmails) data.extraReminderEmails = ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'];
     if(typeof data._lastModified !== 'number') data._lastModified = 0;
     lastKnownModified = data._lastModified;
     const removedGhosts = normalizeSignups();
@@ -4329,9 +4335,21 @@
         </div>`;
       return;
     }
+    const recipientRowsHtml = (data.extraReminderEmails || []).map(addr =>
+      `<div class="ts-closure-row"><span class="ts-closure-date">${esc(addr)}</span><button data-remove-reminder-email="${esc(addr)}">Remove</button></div>`
+    ).join('');
     el.innerHTML = `
       <div class="ts-roster-panel">
-        <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
+        <div class="ts-import-row ts-ci-section" style="margin-top:0; padding-top:0; border-top:none;">
+          <span class="ts-import-row-label">Extra recipients</span>
+          <p style="margin:0 0 10px;">Everyone on the roster with an email on file already gets the automatic "playing tomorrow" email every night before a play day. Add anyone else who should get it too — pro shop staff, etc.</p>
+          ${recipientRowsHtml || '<p class="ts-empty">No extra recipients yet.</p>'}
+          <div class="ts-add-row" style="margin-top:10px;">
+            <input type="email" placeholder="name@example.com" id="ts-new-reminder-email">
+            <button id="ts-add-reminder-email">Add</button>
+          </div>
+        </div>
+        <div class="ts-import-row">
           <button id="ts-prepare-emails-btn">Prepare email reminders</button>
           <p>Generates up to two group emails (as a CSV) — one for everyone playing tomorrow, one for anyone on pro-shop duty tomorrow — each CC'ing the whole group. Doesn't send anything itself — pairs with a scheduled script on your computer.</p>
         </div>
@@ -5818,6 +5836,36 @@
         await prepareWeeklySummary();
       };
     }
+    const addReminderEmailBtn = document.getElementById('ts-add-reminder-email');
+    if(addReminderEmailBtn){
+      addReminderEmailBtn.onclick = async () => {
+        if(!isAdmin) return;
+        const input = document.getElementById('ts-new-reminder-email');
+        const val = (input && input.value || '').trim();
+        if(!val) return;
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)){
+          await showMessage('Not a valid email', 'Enter a full email address like name@example.com.');
+          return;
+        }
+        if(!data.extraReminderEmails) data.extraReminderEmails = [];
+        if(data.extraReminderEmails.some(e => e.toLowerCase() === val.toLowerCase())){
+          await showMessage('Already on the list', `${val} is already getting the reminder.`);
+          return;
+        }
+        data.extraReminderEmails.push(val);
+        await saveData();
+        render();
+      };
+    }
+    document.querySelectorAll('[data-remove-reminder-email]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const addr = btn.getAttribute('data-remove-reminder-email');
+        data.extraReminderEmails = (data.extraReminderEmails || []).filter(e => e !== addr);
+        await saveData();
+        render();
+      };
+    });
   }
 
   function wireEvents(){
