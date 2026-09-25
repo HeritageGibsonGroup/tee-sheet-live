@@ -178,6 +178,9 @@
   .ts-closed-line{ display:flex; align-items:center; gap:8px; }
   .closed-flag{ font-size:15px; }
   .closed-text{ font-size:13.5px; font-weight:600; color:var(--rust); }
+  .ts-notice-line{ display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .notice-flag{ font-size:15px; }
+  .notice-text{ font-size:13.5px; font-weight:600; color:var(--brass); }
   .ts-closed-toggle-label{
     flex-shrink:0; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; color:#a3a293;
     padding:8px 12px; border:1.5px dashed #d8d4c4; border-radius:20px;
@@ -727,7 +730,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'September 24, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'September 25, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1142,7 +1145,7 @@
     return false;
   }
 
-  let data = { roster: [], signups: {}, duty: {}, closures: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
+  let data = { roster: [], signups: {}, duty: {}, closures: {}, notices: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
   // Set when the very first load couldn't reach the backend at all (network hiccup,
   // or the fetch timing out per FETCH_TIMEOUT_MS above) — distinct from a
   // successful load that happens to find an empty roster, so init() can show a
@@ -1426,6 +1429,11 @@
     if(!data.signups) data.signups = {};
     if(!data.duty) data.duty = {};
     if(!data.closures) data.closures = {};
+    // One free-text notice per date, shown under Upcoming Dates on that date's
+    // card — for anything worth flagging that isn't a closure (a shifted first
+    // tee time, a shortened field, etc.). Keyed by date, same as data.closures;
+    // editable from Admin > Course Information > Notices.
+    if(!data.notices) data.notices = {};
     if(!data.swapRequests) data.swapRequests = {};
     if(!data.confirmedTeeTimes) data.confirmedTeeTimes = {};
     // Per-date override for how many tee times' worth of teams to split a
@@ -4056,6 +4064,7 @@
         </div>` : '';
 
       const closure = data.closures[key];
+      const notice = data.notices[key];
 
       // The "Confirmed: [–]" input used to also be reachable from this card, as a
       // fallback for when a booking day slipped into the past before someone got to
@@ -4077,6 +4086,7 @@
              <span class="ts-count">${countBadge}</span>
              <span class="ts-teetimes ${(!confirmedCount && tt===0)?'zero':''}">${teeTimesBadge}</span>
            </div>`}
+           ${notice && notice.trim() ? `<div class="ts-notice-line"><span class="notice-flag">⚠️</span><span class="notice-text">${esc(notice)}</span></div>` : ''}
            <div class="ts-duty">
              <span class="golf-flag">⛳</span>
              ${dutyControl}
@@ -5164,6 +5174,12 @@
       return `<div class="ts-closure-row"><span class="ts-closure-date">${dateLabel}</span>${control}</div>`;
     }).join('');
 
+    const noticeRowsHtml = Object.keys(data.notices || {}).sort().map(k => {
+      const d = new Date(k + 'T00:00:00');
+      const label = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      return `<div class="ts-closure-row"><span class="ts-closure-date">${label}</span><span class="ts-closure-status">${esc(data.notices[k])}</span><button data-remove-notice="${k}">Remove</button></div>`;
+    }).join('');
+
     const teeRows = data.teeOptions.map(tee => {
       const r = data.teeRatings[tee] || {};
       return `<div class="ts-closure-row"><span class="ts-closure-date">${esc(tee)}</span><span class="ts-closure-status">Rating ${r.rating ?? '?'} / Slope ${r.slope ?? '?'} / Par ${COURSE_PAR}</span></div>`;
@@ -5239,6 +5255,7 @@
     const jumpNavHtml = `
       <div class="ts-ci-jumpnav">
         <a href="#ts-ci-closures">Course closures</a>
+        <a href="#ts-ci-notices">Notices</a>
         <a href="#ts-ci-teetimes">First tee times</a>
         <a href="#ts-ci-teeratings">Tee ratings</a>
         <a href="#ts-ci-hh">Hole handicaps</a>
@@ -5254,6 +5271,17 @@
           <h4 style="margin:0 0 4px;">Course closures</h4>
           <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Mark a date closed for an outside event — players won't be able to sign up for it.</p>
           ${closureRowsHtml || '<p class="ts-empty">No upcoming dates.</p>'}
+        </div>
+
+        <div class="ts-import-row ts-ci-section" id="ts-ci-notices">
+          <span class="ts-import-row-label">Notices</span>
+          <p style="margin:0 0 10px;">A short note that appears right on that date's card under Upcoming Dates — for anything worth flagging that isn't a full closure, like a shifted first tee time or a shortened field.</p>
+          ${noticeRowsHtml || '<p class="ts-empty">No notices set.</p>'}
+          <div class="ts-add-row" style="margin-top:10px;">
+            <input type="date" id="ts-new-notice-date">
+            <input type="text" placeholder="e.g. First tee time is 10 AM" id="ts-new-notice-text">
+            <button id="ts-add-notice">Add</button>
+          </div>
         </div>
 
         <div class="ts-import-row ts-ci-section" id="ts-ci-teetimes">
@@ -5818,6 +5846,30 @@
         if(!isAdmin) return;
         const key = btn.getAttribute('data-remove-tee-time');
         delete data.teeTimeSchedule[key];
+        await saveData();
+        render();
+      };
+    });
+    const addNoticeBtn = document.getElementById('ts-add-notice');
+    if(addNoticeBtn){
+      addNoticeBtn.onclick = async () => {
+        if(!isAdmin){ const ok = await requireAdmin(); if(!ok) return; render(); return; }
+        const dateInput = document.getElementById('ts-new-notice-date');
+        const textInput = document.getElementById('ts-new-notice-text');
+        const dateVal = dateInput ? dateInput.value : '';
+        const textVal = textInput ? textInput.value.trim() : '';
+        if(!dateVal || !textVal) return;
+        if(!data.notices) data.notices = {};
+        data.notices[dateVal] = textVal;
+        await saveData();
+        render();
+      };
+    }
+    document.querySelectorAll('[data-remove-notice]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const key = btn.getAttribute('data-remove-notice');
+        delete data.notices[key];
         await saveData();
         render();
       };
