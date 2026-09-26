@@ -261,6 +261,38 @@
     flex:0 1 130px; font-family:'Inter'; font-size:13px; padding:8px 8px; border-radius:7px;
     border:1px solid var(--ivory-line); text-align:center;
   }
+  /* "Bigger buttons" — an opt-in, remembered per device (see BIG_CONTROLS_KEY).
+     Deliberately scoped to the Live Scoring controls and the player line next
+     to them: it makes the things you actually tap during a round easier to hit
+     and read without resizing the whole app on someone who doesn't want that. */
+  .ts-big-controls .ts-score-step{ width:62px; height:62px; font-size:30px; border-radius:12px; }
+  .ts-big-controls .ts-score-input-lg{ width:96px; font-size:34px; padding:16px 4px; }
+  .ts-big-controls .ts-hbh-nav-btn{ width:68px; height:68px; font-size:34px; }
+  .ts-big-controls .ts-hbh-hole-select{ font-size:17px; padding:12px 8px; flex-basis:165px; }
+  /* These two used to be set inline on the elements themselves, which silently
+     beat every rule below — an inline style always wins over a stylesheet. That
+     is why "Bigger buttons" enlarged the controls but never the name. Keep the
+     defaults here so the override actually applies. */
+  .ts-hbh-player-name{ font-weight:600; font-size:15px; }
+  .ts-hbh-player-note{ font-size:11.5px; color:#8b8a7c; }
+  .ts-big-controls .ts-hbh-player-name{ font-size:30px; line-height:1.15; }
+  .ts-big-controls .ts-hbh-player-note{ font-size:19px; line-height:1.35; color:#5f5e52; }
+  /* "gets a stroke here" is the one thing on this line that changes the math,
+     so in bigger-buttons mode it reads as its own highlighted phrase rather
+     than more grey small print. */
+  .ts-big-controls .ts-hbh-stroke-note{ color:var(--brass); font-weight:700; }
+  .ts-big-controls .ts-hbh-row{ padding:20px 0; flex-wrap:wrap; gap:10px; }
+  /* At this size the name and the −/+ pair can't share a phone-width row
+     without the name wrapping mid-word, which is the opposite of what someone
+     turned this on for. Give the name the full width and centre the controls
+     under it — bigger targets, nothing truncated. */
+  .ts-big-controls .ts-hbh-row > div:first-child{ flex:1 1 100%; }
+  .ts-big-controls .ts-hbh-controls{ flex:1 1 100%; justify-content:center; gap:16px; }
+  .ts-size-toggle{
+    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; color:var(--fairway);
+    background:#fff; border:1px solid var(--ivory-line); border-radius:8px; padding:8px 12px; cursor:pointer;
+  }
+  .ts-size-toggle.active{ background:var(--brass); border-color:var(--brass); color:var(--fairway-dark); }
   .ts-score-table td.ts-score-stroke{ background:#FBF3E4; }
   .ts-score-table td.ts-score-stroke .ts-score-input{ border-color:var(--brass); }
   .ts-score-table td.ts-score-stroke .ts-score-display{ border-color:var(--brass); }
@@ -705,6 +737,9 @@
   const ADMIN_GATE_KEY = IS_LIVE_ENV ? 'golf-league-admin-gate-players' : 'golf-league-admin-gate-players-TEST';
   const VERIFIED_KEY = IS_LIVE_ENV ? 'golf-league-verified-players' : 'golf-league-verified-players-TEST';
   const GUEST_UNLOCK_KEY = IS_LIVE_ENV ? 'golf-league-guest-unlocked' : 'golf-league-guest-unlocked-TEST';
+  // Remembered per device, not per login — someone who needs bigger targets
+  // needs them every round, and asking again each time would defeat the point.
+  const BIG_CONTROLS_KEY = IS_LIVE_ENV ? 'golf-league-big-controls' : 'golf-league-big-controls-TEST';
   // Data Import/Export & Comparison always deals with exactly two sides — this
   // app, and a snapshot pasted in from "the other one" — so these name which
   // is which in plain "test"/"live" terms instead of the generic "here"/
@@ -1181,6 +1216,10 @@
   let reviewDateKey = null;
   let scoringViewMode = 'setup'; // 'setup' | 'live' | 'scoreboard' | 'season' — which part of Scoring & Bets is showing
   let scoringHoleIndex = 0; // position within flatHoles for the hole-by-hole view
+  // Live Scoring's bigger-buttons mode. Read once at startup from this device's
+  // own storage (see BIG_CONTROLS_KEY) and applied as a class on the app root.
+  let bigControls = false;
+  try{ bigControls = localStorage.getItem(BIG_CONTROLS_KEY) === 'true'; }catch(e){ bigControls = false; }
   let scoreboardSeriesFilter = 0; // which single series (0/1/2) the Match scoreboard shows at a time
   // Which team's players Live Scoring's hole-by-hole view shows — 'auto'
   // (default) means "whichever team the signed-in viewer is on, else
@@ -1208,6 +1247,11 @@
   // onto the wrong hole.
   let hbhDraft = {};
   let hbhDraftKey = null; // `${dateKey}::${holeNum}` the draft above belongs to
+  // Which ids in hbhDraft above got there from the automatic par pre-fill
+  // (see hbhRowHtml) rather than the scorer actually touching that box —
+  // used so a seeded-but-never-touched value only ever counts as a real
+  // entry when the scorer deliberately moves forward off the hole with ›.
+  let hbhSeededIds = new Set();
   // A whole hole's worth of scores that were "posted" but didn't make it to the
   // backend (spotty course signal) — the visible edits still stand locally, and
   // this gets a "not saved" banner plus an automatic retry (on reconnect, the
@@ -4248,6 +4292,11 @@
     if(activeSection === 'admin') wireRosterPanel();
   }
 
+  function applyBigControlsClass(){
+    if(!root) return;
+    root.classList.toggle('ts-big-controls', bigControls);
+  }
+
   function warnBannerHtml(){
     return `<div class="ts-warn-banner"><b>Heads up:</b> this looks like it's open outside Claude, so changes won't save or sync for others. Open it from the file card in the chat instead.</div>`;
   }
@@ -4790,7 +4839,7 @@
     // switching holes (or dates) always starts clean, so a stray edit can
     // never leak onto the wrong hole.
     const hbhDraftKeyNow = `${dateKey}::${hbhHole}`;
-    if(hbhDraftKeyNow !== hbhDraftKey){ hbhDraft = {}; hbhDraftKey = hbhDraftKeyNow; }
+    if(hbhDraftKeyNow !== hbhDraftKey){ hbhDraft = {}; hbhSeededIds = new Set(); hbhDraftKey = hbhDraftKeyNow; }
 
     // Every player on a team for this date — there's no way to know scores for
     // anyone not on a team, so that's the only group Live Scoring ever shows.
@@ -4900,16 +4949,27 @@
       </div>` : (filteredToScope ? `
       <div style="margin-bottom:10px; font-size:12px; color:#6b6a5e; font-weight:500;">Showing: ${scopeWord} ${scopeFilter+1} <span style="font-weight:400;">— your ${groupsMode ? 'group' : 'team'}</span></div>` : '');
 
-    // No more silent par pre-fill — a box that's never been tapped stays
-    // truly empty (see hbhRowHtml below), and the Match scoreboard shows a
-    // hatched "not played" cell for it instead of a number nobody actually
-    // entered.
+    // Every box starts at the hole's par, so a par takes no taps at all and
+    // anything else is one or two taps of − / + from there. This is a display
+    // default only: it sits in hbhDraft marked as "seeded" (hbhSeededIds), and
+    // is only ever posted when the scorer moves FORWARD off the hole with ›,
+    // which is the deliberate "this hole is done" action. Going back to look
+    // at an earlier hole, or jumping around with the hole picker, never posts
+    // a seeded par — so a hole nobody actually played still stays unplayed and
+    // the Match scoreboard still hatches it rather than inventing a score.
+    // Clearing a box on purpose sticks too: an empty draft value is a real
+    // value here, not a blank to re-seed.
     const hbhRowHtml = (p) => {
       const committed = (round.scores[p.id] || {})[String(hbhHole)];
-      // A draft edit (something typed, stepped, or tap-defaulted-to-par this
+      // A draft edit (something typed, stepped, or the par pre-fill from this
       // visit, not yet posted) always wins over whatever's already on file;
-      // otherwise show the already-posted value, or blank if there is none.
-      const draftVal = hbhDraft[p.id];
+      // otherwise show the already-posted value.
+      let draftVal = hbhDraft[p.id];
+      if(draftVal === undefined && typeof committed !== 'number' && hbhPar !== null){
+        draftVal = String(hbhPar);
+        hbhDraft[p.id] = draftVal;
+        hbhSeededIds.add(p.id);
+      }
       const displayVal = draftVal !== undefined ? draftVal : (typeof committed === 'number' ? String(committed) : '');
       const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), hbhHole, p.tee) : 0;
       const inputId = `ts-hbh-score-${p.id}`;
@@ -4921,12 +4981,12 @@
       const hybridTeeHere = hybridTeeForHole(p.tee, hbhHole);
       const hybridNote = hybridTeeHere ? ` <span class="ts-team-so">Hit from ${esc(hybridTeeHere)} tees</span>` : '';
       return `
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
+        <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
-            <div style="font-weight:600; font-size:15px;">${esc(p.name)}</div>
-            <div style="font-size:11.5px; color:#8b8a7c;">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · gets a stroke here' : ''}${hybridNote}</div>
+            <div class="ts-hbh-player-name">${esc(p.name)}</div>
+            <div class="ts-hbh-player-note">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
           </div>
-          <div style="display:flex; align-items:center; gap:6px;">
+          <div class="ts-hbh-controls" style="display:flex; align-items:center; gap:6px;">
             <button type="button" class="ts-score-step" data-step-for="${inputId}" data-step-dir="-1" data-hbh-score-player="${p.id}" data-hbh-par="${hbhPar !== null ? hbhPar : ''}">−</button>
             <span class="ts-score-cell-wrap">
               <input type="number" inputmode="numeric" min="1" max="15" step="1" id="${inputId}" class="ts-score-input ts-score-input-lg ts-hbh-score-input${strokesHere > 0 ? ' ts-score-stroke' : ''}"
@@ -5158,6 +5218,9 @@
           ${standingsHtml}
         ` : `
           <h4 style="margin:16px 0 4px;">Live Scoring</h4>
+          <div style="margin:0 0 8px;">
+            <button type="button" id="ts-big-controls-toggle" class="ts-size-toggle${bigControls ? ' active' : ''}" aria-pressed="${bigControls ? 'true' : 'false'}">${bigControls ? '✓ Bigger buttons on' : 'Bigger buttons'}</button>
+          </div>
           <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Enter each player's score below, then tap › to move to the next hole (or ‹ to go back and check an earlier one) — either arrow saves what's on screen first, so a fix always sticks no matter which way you navigate away from it.</p>
           ${holeByHoleHtml}
         `}
@@ -6214,15 +6277,12 @@
 
     // Hole-by-hole score boxes are draft-only — nothing here touches the
     // network or triggers a re-render on every keystroke, so typing stays
-    // smooth even on a weak course signal. Tapping into an empty box used to
-    // silently fill it with par right away — indistinguishable from a score
-    // someone actually typed in, since both then show as a plain dark number.
-    // That's gone: an empty box now stays empty (just the faint "par" hint)
-    // until you actually type a number or tap +/- (those still start from
-    // par when empty, since pressing one is a deliberate "enter a score"
-    // action, not just tapping to look at the box). Tapping into a box that
-    // already has a real value still selects it, so overwriting a mistake is
-    // one tap plus typing.
+    // smooth even on a weak course signal. A box with no score on file yet
+    // already shows the hole's par (see hbhRowHtml's seeding), so most holes
+    // need no typing at all; tapping in still selects that value so typing
+    // over it (or a +/- tap) replaces it in one motion, and either one clears
+    // hbhSeededIds for that player so it counts as a real entry, not the
+    // pre-fill (see saveCurrentHoleIfDirty for why that distinction matters).
     document.querySelectorAll('.ts-hbh-score-input').forEach(input => {
       const playerId = input.getAttribute('data-hbh-score-player');
       input.addEventListener('focus', () => {
@@ -6230,19 +6290,22 @@
       });
       input.addEventListener('input', () => {
         hbhDraft[playerId] = input.value;
+        hbhSeededIds.delete(playerId); // hand-entered now, not the par pre-fill
       });
       input.addEventListener('change', async () => {
         const raw = input.value.trim();
-        if(raw === ''){ hbhDraft[playerId] = ''; return; }
+        if(raw === ''){ hbhDraft[playerId] = ''; hbhSeededIds.delete(playerId); return; }
         const n = parseInt(raw, 10);
         if(isNaN(n) || n < 1 || n > 15){
           await showMessage('Not a valid score', 'Enter a whole number of strokes between 1 and 15, or leave it blank.');
           input.value = '';
           hbhDraft[playerId] = '';
+          hbhSeededIds.delete(playerId);
           return;
         }
         input.value = n;
         hbhDraft[playerId] = String(n);
+        hbhSeededIds.delete(playerId);
       });
     });
 
@@ -6660,20 +6723,32 @@
     // before. Returns false (and stays put) if a bad entry needs fixing
     // first, or if the save itself failed (it's queued for automatic retry
     // either way — see postHoleScores/unsavedHoleKeys).
-    async function saveCurrentHoleIfDirty(){
-      if(!Object.keys(hbhDraft).length) return true; // nothing touched here — nothing to save
+    // opts.includeSeeded — true only when leaving the hole FORWARD via ›, the
+    // deliberate "this hole is finished" action. That's when the automatic par
+    // pre-fill (see hbhRowHtml) counts as a real entry for everyone who didn't
+    // need changing. Moving backwards, or jumping with the hole picker, posts
+    // only boxes a person actually touched (hbhSeededIds tracks which ids in
+    // hbhDraft are still just the pre-fill), so reviewing earlier holes can't
+    // stamp pars onto holes that were never played.
+    async function saveCurrentHoleIfDirty(opts){
+      const includeSeeded = !!(opts && opts.includeSeeded);
+      const touchedIds = Object.keys(hbhDraft).filter(id => !hbhSeededIds.has(id));
+      const seededIds = Object.keys(hbhDraft).filter(id => hbhSeededIds.has(id));
+      if(!touchedIds.length && !(includeSeeded && seededIds.length)) return true; // nothing to save
       const nextBtn = document.getElementById('ts-hbh-next-hole');
       if(!nextBtn || !nextBtn.hasAttribute('data-post-ids')) return true; // nobody to post for
       const dateKeyAttr = nextBtn.getAttribute('data-post-date');
       const holeNum = nextBtn.getAttribute('data-post-hole');
-      const ids = nextBtn.getAttribute('data-post-ids').split(',').filter(Boolean);
+      // Only ever the ids we're actually allowed to save this time — never
+      // every visible id — so a still-seeded box belonging to someone else on
+      // this hole can't ride along and get posted just because a different
+      // player's box was genuinely touched.
+      const idsToSave = includeSeeded ? touchedIds.concat(seededIds) : touchedIds;
 
-      // Collect (and validate) every visible player's current value — a
-      // draft edit if there is one, otherwise whatever's already posted —
-      // before sending anything, so one bad entry doesn't post the rest of
-      // the hole halfway.
+      // Collect (and validate) each of those players' current value before
+      // sending anything, so one bad entry doesn't post the rest halfway.
       const entries = [];
-      for(const id of ids){
+      for(const id of idsToSave){
         const input = document.getElementById(`ts-hbh-score-${id}`);
         const raw = input ? input.value.trim() : (hbhDraft[id] !== undefined ? hbhDraft[id] : '');
         if(raw === ''){ entries.push({ playerId: id, strokes: null }); continue; }
@@ -6686,7 +6761,14 @@
       }
 
       const ok = await postHoleScores(dateKeyAttr, holeNum, entries);
-      hbhDraft = {};
+      // postHoleScores applies these entries to local state optimistically
+      // before it ever touches the network, so they're already reflected in
+      // round.scores whether or not the request itself succeeds (a failure
+      // just queues the automatic retry — see unsavedHoleKeys). Clearing them
+      // here is safe either way; anything left seeded-but-unsaved (moved
+      // backward/jumped instead of advancing) stays in hbhDraft to show its
+      // pre-filled par again and get another chance next time.
+      idsToSave.forEach(id => { delete hbhDraft[id]; hbhSeededIds.delete(id); });
       return ok;
     }
 
@@ -6694,7 +6776,7 @@
     if(hbhPrevBtn){
       hbhPrevBtn.addEventListener('click', async () => {
         hbhPrevBtn.disabled = true;
-        const ok = await saveCurrentHoleIfDirty();
+        const ok = await saveCurrentHoleIfDirty({ includeSeeded: false });
         if(ok) scoringHoleIndex = Math.max(0, scoringHoleIndex - 1);
         render();
       });
@@ -6716,7 +6798,7 @@
         // renderScoringPanel clamps scoringHoleIndex back to the last hole
         // automatically if this was already the final one, so it's safe to
         // just always increment here on success.
-        const ok = await saveCurrentHoleIfDirty();
+        const ok = await saveCurrentHoleIfDirty({ includeSeeded: true });
         if(ok) scoringHoleIndex = scoringHoleIndex + 1;
         render();
       });
@@ -6725,7 +6807,7 @@
     if(hbhHoleSelect){
       hbhHoleSelect.addEventListener('change', async () => {
         const target = parseInt(hbhHoleSelect.value, 10) || 0;
-        const ok = await saveCurrentHoleIfDirty();
+        const ok = await saveCurrentHoleIfDirty({ includeSeeded: false });
         // On success, jump to whichever hole was picked. On failure, re-render
         // without changing scoringHoleIndex — this snaps the dropdown itself
         // back to the hole you were actually still on, since a bad entry (or a
@@ -6746,6 +6828,15 @@
     if(liveScorecardsToggleBtn){
       liveScorecardsToggleBtn.addEventListener('click', () => {
         liveScorecardsOpen = !liveScorecardsOpen;
+        render();
+      });
+    }
+    const bigControlsToggle = document.getElementById('ts-big-controls-toggle');
+    if(bigControlsToggle){
+      bigControlsToggle.addEventListener('click', () => {
+        bigControls = !bigControls;
+        try{ localStorage.setItem(BIG_CONTROLS_KEY, bigControls ? 'true' : 'false'); }catch(e){}
+        applyBigControlsClass();
         render();
       });
     }
@@ -6771,7 +6862,10 @@
         if(next > 15) next = 15;
         input.value = next;
         const playerId = btn.getAttribute('data-hbh-score-player');
-        if(playerId) hbhDraft[playerId] = String(next);
+        if(playerId){
+          hbhDraft[playerId] = String(next);
+          hbhSeededIds.delete(playerId); // deliberately stepped, not the par pre-fill
+        }
       });
     });
 
@@ -7077,6 +7171,7 @@
       if(retryBtn) retryBtn.onclick = () => window.location.reload();
       return;
     }
+    applyBigControlsClass();
     render();
     await reverifyIfNeeded();
     await autoIdentifyIfNeeded();
