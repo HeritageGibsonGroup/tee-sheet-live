@@ -179,6 +179,7 @@
   .closed-flag{ font-size:15px; }
   .closed-text{ font-size:13.5px; font-weight:600; color:var(--rust); }
   .ts-notice-line{ display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .ts-notice-inline{ display:inline-flex; align-items:center; gap:4px; }
   .notice-flag{ font-size:15px; }
   .notice-text{ font-size:13.5px; font-weight:600; color:var(--brass); }
   .ts-closed-toggle-label{
@@ -730,7 +731,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'September 25, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'September 26, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -2353,9 +2354,12 @@
   // "Assemble playing groups" — same grid look as swapPlayersTableHtml above,
   // but assigns players to physical playing groups (who actually tees off
   // together) instead of betting teams. Only shown when a round's
-  // scoringMode is 'groups'. Only bet-eligible players (teamsInfo.teams.flat())
-  // are listed — Live Scoring never tracks scores for anyone not on a
-  // betting team, so a "Not playing" player has no group to fill in either.
+  // scoringMode is 'groups'. Lists every bet-eligible player
+  // (teamsInfo.teams.flat()) plus everyone sitting out of the bet
+  // (teamsInfo.notInBet, tagged below) — a player not in the bet still tees
+  // off with a physical group, so they still need a spot here even though
+  // Live Scoring itself never tracks scores for them (that stays keyed by
+  // betting team only — see allRoundPlayers in the scoring panel, unchanged).
   // Number of groups always matches the number of betting teams. Storage is
   // a plain playerId -> group index map (data.playingGroups[dateKey]); no
   // entry means Unassigned.
@@ -2369,7 +2373,8 @@
   // separate round trips to the Apps Script backend instead of one.
   function assignGroupsTableHtml(dateKey, teamsInfo){
     const numGroups = teamsInfo.teams.length;
-    const players = teamsInfo.teams.flat();
+    const notInBetIds = new Set((teamsInfo.notInBet || []).map(p => p.id));
+    const players = teamsInfo.teams.flat().concat(teamsInfo.notInBet || []);
     if(!(numGroups > 0 && players.length > 0)) return '';
     const hasPending = pendingGroupAssignments !== null && pendingGroupAssignmentsDate === dateKey;
     const assignments = hasPending ? pendingGroupAssignments : (data.playingGroups[dateKey] || {});
@@ -2386,14 +2391,14 @@
     return `
       <div class="ts-import-row">
         <span class="ts-import-row-label">Assemble playing groups</span>
-        <p style="margin:6px 0 8px;">Check which group each player is actually teeing off with today — mix players from any betting team however you like. Everyone starts Unassigned; the bet is still settled by betting team no matter how these are set.</p>
+        <p style="margin:6px 0 8px;">Check which group each player is actually teeing off with today — mix players from any betting team however you like, and place anyone sitting out of the bet (marked below) into a group too. Everyone starts Unassigned; the bet is still settled by betting team no matter how these are set.</p>
         <div style="overflow-x:auto;">
           <div class="ts-assign-grid" style="grid-template-columns: minmax(84px,1fr) repeat(${numCols}, minmax(44px,auto)); min-width:${84 + numCols * 44 + numCols * 6}px;">
             <div class="ts-assign-head"></div>
             ${Array.from({ length: numGroups }, (_, gi) => `<div class="ts-assign-head">Group ${gi+1}</div>`).join('')}
             <div class="ts-assign-head">Unassigned</div>
             ${assignAllPlayers.map(({ p, groupIndex }) => `
-              <div class="ts-assign-name">${esc(p.name)}</div>
+              <div class="ts-assign-name">${esc(p.name)}${notInBetIds.has(p.id) ? ` <span class="ts-team-so">(not in bet)</span>` : ''}</div>
               ${Array.from({ length: numGroups }, (_, gi) => `
                 <label class="ts-assign-radio-cell">
                   <input type="radio" name="ts-group-assign-${dateKey}-${p.id}" data-group-assign-date="${dateKey}" data-group-assign-player="${p.id}" data-group-assign-group="${gi}" ${groupIndex===gi?'checked':''}>
@@ -4079,14 +4084,16 @@
         ? `${confirmedCount} tee time${confirmedCount===1?'':'s'} confirmed`
         : `${tt} tee time${tt===1?'':'s'}`;
 
+      const noticeInlineHtml = notice && notice.trim() ? `<span class="ts-notice-inline"><span class="notice-flag">⚠️</span><span class="notice-text">${esc(notice)}</span></span>` : '';
+
       const midSection = `
            ${closure
-             ? `<div class="ts-closed-line"><span class="closed-flag">🚫</span><span class="closed-text">Course Closed${closure.trim() ? ' — ' + esc(closure) : ''}</span></div>`
+             ? `<div class="ts-closed-line"><span class="closed-flag">🚫</span><span class="closed-text">Course Closed${closure.trim() ? ' — ' + esc(closure) : ''}</span></div>${noticeInlineHtml ? `<div class="ts-notice-line">${noticeInlineHtml}</div>` : ''}`
              : `<div class="ts-card-mid-top">
              <span class="ts-count">${countBadge}</span>
+             ${noticeInlineHtml}
              <span class="ts-teetimes ${(!confirmedCount && tt===0)?'zero':''}">${teeTimesBadge}</span>
            </div>`}
-           ${notice && notice.trim() ? `<div class="ts-notice-line"><span class="notice-flag">⚠️</span><span class="notice-text">${esc(notice)}</span></div>` : ''}
            <div class="ts-duty">
              <span class="golf-flag">⛳</span>
              ${dutyControl}
