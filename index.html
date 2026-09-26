@@ -2360,9 +2360,11 @@
   // off with a physical group, so they still need a spot here even though
   // Live Scoring itself never tracks scores for them (that stays keyed by
   // betting team only — see allRoundPlayers in the scoring panel, unchanged).
-  // Number of groups always matches the number of betting teams. Storage is
-  // a plain playerId -> group index map (data.playingGroups[dateKey]); no
-  // entry means Unassigned.
+  // Number of explicit "Group" columns always matches the number of betting
+  // teams, plus one more column at the end for however many physical groups
+  // actually go out beyond that (labeled "Group N+1", not "Unassigned" — see
+  // assignGroupsTableHtml). Storage is a plain playerId -> group index map
+  // (data.playingGroups[dateKey]); no entry (or -1) means that last column.
   //
   // Unlike swapping betting teams (each swap saves immediately, and "Accept
   // teams" only gates when Live Scoring reflects it), group assignment
@@ -2387,16 +2389,22 @@
       if(ah !== bh) return ah - bh;
       return a.p.name.localeCompare(b.p.name);
     });
-    const numCols = numGroups + 1; // group columns + Unassigned
+    const numCols = numGroups + 1; // group columns + the overflow/last column
+    // The rightmost column is stored internally the same as ever (group index
+    // -1, "unassigned") but labeled as the next group number instead of
+    // "Unassigned" — with more players teeing off than there are betting
+    // teams (e.g. 9 players in 3 physical groups but only 2 betting teams),
+    // this column IS a real physical group in practice, not a leftover
+    // holding pen, so it should read as one.
     return `
       <div class="ts-import-row">
         <span class="ts-import-row-label">Assemble playing groups</span>
-        <p style="margin:6px 0 8px;">Check which group each player is actually teeing off with today — mix players from any betting team however you like, and place anyone sitting out of the bet (marked below) into a group too. Everyone starts Unassigned; the bet is still settled by betting team no matter how these are set.</p>
+        <p style="margin:6px 0 8px;">Check which group each player is actually teeing off with today — mix players from any betting team however you like, and place anyone sitting out of the bet (marked below) into a group too. Everyone starts in the last column below; the bet is still settled by betting team no matter how these are set.</p>
         <div style="overflow-x:auto;">
           <div class="ts-assign-grid" style="grid-template-columns: minmax(84px,1fr) repeat(${numCols}, minmax(44px,auto)); min-width:${84 + numCols * 44 + numCols * 6}px;">
             <div class="ts-assign-head"></div>
             ${Array.from({ length: numGroups }, (_, gi) => `<div class="ts-assign-head">Group ${gi+1}</div>`).join('')}
-            <div class="ts-assign-head">Unassigned</div>
+            <div class="ts-assign-head">Group ${numGroups+1}</div>
             ${assignAllPlayers.map(({ p, groupIndex }) => `
               <div class="ts-assign-name">${esc(p.name)}${notInBetIds.has(p.id) ? ` <span class="ts-team-so">(not in bet)</span>` : ''}</div>
               ${Array.from({ length: numGroups }, (_, gi) => `
