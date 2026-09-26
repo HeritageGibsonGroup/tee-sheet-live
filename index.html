@@ -1719,6 +1719,32 @@
     const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
   }
 
+  // True only for a true anonymous visitor — entered the shared guest PIN and
+  // never picked a roster identity (see isGuestVerified above). A recognized
+  // player or an admin always sees real names; this is just for someone Tom
+  // brings along who's browsing without an identity of their own.
+  function namesHiddenForViewer(){
+    return isGuestVerified && !meId && !isAdmin;
+  }
+
+  // A stable, made-up label for a player, used only when namesHiddenForViewer()
+  // is true. Based on the player's fixed position in data.roster (not sorted,
+  // not per-view), so the same person reads as the same "Player N" everywhere
+  // in the app for the length of the visit, instead of a different number in
+  // every list they happen to appear in.
+  function guestPlayerLabel(p){
+    if(!p) return '';
+    const idx = data.roster.findIndex(r => r.id === p.id);
+    return idx === -1 ? 'Player' : `Player ${idx + 1}`;
+  }
+
+  // Use this instead of esc(p.name) anywhere a player's name is displayed —
+  // it swaps in the made-up label for a true anonymous guest and otherwise
+  // behaves exactly like esc(p.name).
+  function playerLabel(p){
+    return namesHiddenForViewer() ? guestPlayerLabel(p) : esc(p.name);
+  }
+
   // In-page dialog replacing window.prompt/alert. Browser popups like prompt() can be
   // silently blocked inside a sandboxed preview frame (a click does nothing, no error) —
   // this renders a normal on-screen box instead, so it works wherever the app is viewed.
@@ -2382,7 +2408,7 @@
             ${Array.from({ length: numTeams }, (_, ti) => `<div class="ts-assign-head">Team ${ti+1}</div>`).join('')}
             <div class="ts-assign-head">Not in Bet</div>
             ${assignAllPlayers.map(({ p, teamIndex }) => `
-              <div class="ts-assign-name">${esc(p.name)}</div>
+              <div class="ts-assign-name">${playerLabel(p)}</div>
               ${Array.from({ length: numTeams }, (_, ti) => `
                 <label class="ts-assign-radio-cell">
                   <input type="radio" name="ts-assign-${dateKey}-${p.id}" data-assign-date="${dateKey}" data-assign-player="${p.id}" data-assign-team="${ti}" ${teamIndex===ti?'checked':''}>
@@ -2450,7 +2476,7 @@
             ${Array.from({ length: numGroups }, (_, gi) => `<div class="ts-assign-head">Group ${gi+1}</div>`).join('')}
             <div class="ts-assign-head">Group ${numGroups+1}</div>
             ${assignAllPlayers.map(({ p, groupIndex }) => `
-              <div class="ts-assign-name">${esc(p.name)}${notInBetIds.has(p.id) ? ` <span class="ts-team-so">(not in bet)</span>` : ''}</div>
+              <div class="ts-assign-name">${playerLabel(p)}${notInBetIds.has(p.id) ? ` <span class="ts-team-so">(not in bet)</span>` : ''}</div>
               ${Array.from({ length: numGroups }, (_, gi) => `
                 <label class="ts-assign-radio-cell">
                   <input type="radio" name="ts-group-assign-${dateKey}-${p.id}" data-group-assign-date="${dateKey}" data-group-assign-player="${p.id}" data-group-assign-group="${gi}" ${groupIndex===gi?'checked':''}>
@@ -2498,7 +2524,7 @@
         }).join('');
         const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
         const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
-        const mainRow = `<tr><td class="ts-score-name">${esc(p.name)}${teeNote}${soNote}</td>${cells}<td class="ts-scorecard-blank"></td></tr>`;
+        const mainRow = `<tr><td class="ts-score-name">${playerLabel(p)}${teeNote}${soNote}</td>${cells}<td class="ts-scorecard-blank"></td></tr>`;
         // Hybrid tees (Red/Gold, Gold/White, White/Blue, Blue/Black) play a
         // different single tee hole by hole — a thin reference row right under
         // that player's row, so the boxes above stay clear to write scores in.
@@ -3911,7 +3937,7 @@
           <label>I'm —</label>
           <select id="ts-who-select">
             <option value="">Select your name</option>
-            ${sortedRoster().map(p => `<option value="${p.id}" ${p.id===meId?'selected':''}>${esc(p.name)}</option>`).join('')}
+            ${sortedRoster().map(p => `<option value="${p.id}" ${p.id===meId?'selected':''}>${esc(p.name) /* always the real name here, even for a guest — this is the one control that lets someone leave guest mode and pick their own name */}</option>`).join('')}
           </select>
         </div>
         ${me ? `<div style="margin-top:6px;"><button class="ts-pin-link" id="ts-set-pin">${meHasPin ? 'Change my PIN' : 'Protect my signups with a PIN'}</button></div>` : ''}
@@ -3977,7 +4003,7 @@
             <select id="ts-schedule-filter">
               <option value="">All players</option>
               ${meId ? `<option value="__me__" ${scheduleFilterId==='__me__'?'selected':''}>Just my dates</option>` : ''}
-              ${sortedRoster().map(p => `<option value="${p.id}" ${scheduleFilterId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+              ${sortedRoster().map(p => `<option value="${p.id}" ${scheduleFilterId===p.id?'selected':''}>${playerLabel(p)}</option>`).join('')}
             </select>
           </div>`}
           ${scheduleSort === 'date' ? `
@@ -4059,8 +4085,8 @@
               if(!p) return '';
               const badge = HOLES_SHORT[entry.holes] ? `<span class="holes-badge">${HOLES_SHORT[entry.holes]}</span>` : '';
               const guestBadge = p.isGuest ? `<span class="ts-guest-badge">Guest</span>` : '';
-              const removeBtn = isAdmin ? `<button class="chip-remove" data-admin-remove="${key}|${entry.id}" title="Remove ${esc(p.name)}">×</button>` : '';
-              return `<span class="name-chip ${entry.id===meId?'me':''}">${esc(p.name)}${guestBadge}${badge}${removeBtn}</span>`;
+              const removeBtn = isAdmin ? `<button class="chip-remove" data-admin-remove="${key}|${entry.id}" title="Remove ${playerLabel(p)}">×</button>` : '';
+              return `<span class="name-chip ${entry.id===meId?'me':''}">${playerLabel(p)}${guestBadge}${badge}${removeBtn}</span>`;
             }).join('')
           : `<span class="ts-empty">No one signed up yet</span>`;
       }
@@ -4080,7 +4106,7 @@
         ? `<div class="ts-admin-add">
              <select class="ts-admin-add-select" data-admin-add-key="${key}">
                <option value="">+ Add a player…</option>
-               ${sortedRoster().filter(p => !rosterIdsSignedUp.includes(p.id)).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}
+               ${sortedRoster().filter(p => !rosterIdsSignedUp.includes(p.id)).map(p => `<option value="${p.id}">${playerLabel(p)}</option>`).join('')}
              </select>
              <button class="ts-admin-add-guest-btn" data-admin-add-guest-key="${key}">+ Add a guest…</button>
            </div>`
@@ -4099,7 +4125,7 @@
 
       const dutyControl = targetClosed
         ? `<span class="ts-duty-static">Course closed ${MON_NAMES[targetDate.getMonth()]} ${targetDate.getDate()} — no tee times needed</span>`
-        : `<span class="ts-duty-static">${targetDuty ? esc(targetDuty.name) + ' has booking duty' : 'No one has booking duty yet'}</span>`;
+        : `<span class="ts-duty-static">${targetDuty ? playerLabel(targetDuty) + ' has booking duty' : 'No one has booking duty yet'}</span>`;
 
       const generatedTeams = data.teams[key];
       const teamsHtml = generatedTeams ? `
@@ -4108,14 +4134,14 @@
           ${generatedTeams.teams.map((team, i) => `
             <div class="ts-team-row">
               <span class="ts-team-num">Team ${i+1}</span>
-              ${team.map(p => {   const teeLabel = p.tee ? `${esc(p.tee)} tee ` : '';   const hcNote = typeof p.courseHandicap === 'number' ? ` <span class="ts-team-so">(${teeLabel}CH ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''})</span>` : '';   return `<span class="name-chip">${esc(p.name)}${hcNote}</span>`; }).join('')}
+              ${team.map(p => {   const teeLabel = p.tee ? `${esc(p.tee)} tee ` : '';   const hcNote = typeof p.courseHandicap === 'number' ? ` <span class="ts-team-so">(${teeLabel}CH ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''})</span>` : '';   return `<span class="name-chip">${playerLabel(p)}${hcNote}</span>`; }).join('')}
             </div>`).join('')}
           ${generatedTeams.notInBet && generatedTeams.notInBet.length ? `
             <div class="ts-team-row">
               <span class="ts-team-num" style="color:var(--rust);">Not in the bet</span>
               ${generatedTeams.notInBet.map(p => {
                 const teeLabel = p.tee ? `${esc(p.tee)} tee ` : ''; const hcNote = typeof p.courseHandicap === 'number' ? ` — ${teeLabel}CH ${p.courseHandicap}${typeof p.strokesOff === 'number' ? `, Strokes off ${p.strokesOff}` : ''}` : '';
-                return `<span class="name-chip">${esc(p.name)} <span class="ts-team-so">(${esc(p.reason)}${hcNote})</span></span>`;
+                return `<span class="name-chip">${playerLabel(p)} <span class="ts-team-so">(${esc(p.reason)}${hcNote})</span></span>`;
               }).join('')}
             </div>` : ''}
         </div>` : '';
@@ -4242,7 +4268,7 @@
           return `<tr><td class="ts-grid-date">${dateLabel}</td><td class="ts-grid-closed" colspan="${roster.length}">Club Closed</td></tr>`;
         }
         const signedIds = new Set((data.signups[key] || []).map(e => e.id));
-        const cells = roster.map(p => `<td>${signedIds.has(p.id) ? esc(p.name) : ''}</td>`).join('');
+        const cells = roster.map(p => `<td>${signedIds.has(p.id) ? playerLabel(p) : ''}</td>`).join('');
         return `<tr><td class="ts-grid-date">${dateLabel}</td>${cells}</tr>`;
       }).join('');
       gridEl.innerHTML = `
@@ -4280,7 +4306,7 @@
           </table>` : `<p class="ts-empty">No upcoming dates</p>`;
         return `
           <div class="ts-person-group">
-            <h5>${esc(p.name)}</h5>
+            <h5>${playerLabel(p)}</h5>
             ${bodyHtml}
           </div>`;
       }).join('');
@@ -4326,7 +4352,7 @@
         ${sortedRoster().map(p => `
           <div class="ts-player-row" data-pid="${p.id}">
             <div class="ts-player-row-top">
-              <input type="text" value="${esc(p.name)}" data-name-input="${p.id}" placeholder="Name">
+              <input type="text" value="${playerLabel(p)}" data-name-input="${p.id}" placeholder="Name">
               <input type="email" value="${esc(p.email || '')}" data-email-input="${p.id}" placeholder="Email (optional)">
               <span class="ts-player-row-guest-col">${p.isGuest ? `<span class="ts-guest-badge">Guest</span>` : ''}</span>
             </div>
@@ -4497,7 +4523,7 @@
       const courseHcp = (typeof previewIndex === 'number' && !isNaN(previewIndex)) ? computedCourseHandicap(previewIndex, p.defaultTee) : null;
       return `
         <div class="ts-roster-row" data-hpid="${p.id}">
-          <span style="flex:1; min-width:170px;">${esc(p.name)}</span>
+          <span style="flex:1; min-width:170px;">${playerLabel(p)}</span>
           <input type="number" step="0.1" min="-10" max="54" data-handicap-index="${p.id}" value="${inputVal}" placeholder="—" style="width:60px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
           <select data-default-tee="${p.id}" style="width:140px; font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
             <option value="">No default tee</option>
@@ -4588,7 +4614,7 @@
       const courseHcp = computedCourseHandicap(p.handicapIndex, p.defaultTee);
       return `
         <div class="ts-roster-row">
-          <span style="flex:1; min-width:170px;">${esc(p.name)}</span>
+          <span style="flex:1; min-width:170px;">${playerLabel(p)}</span>
           <span style="width:90px; font-family:'IBM Plex Mono',monospace; font-size:12px;">${typeof p.handicapIndex === 'number' ? p.handicapIndex : '—'}</span>
           <span style="width:140px; font-size:13px;">${p.defaultTee ? esc(p.defaultTee) : '—'}</span>
           <span style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
@@ -4727,7 +4753,7 @@
       const reasonNote = isNotPlaying && p.reason ? ` <span class="ts-team-so">(${esc(p.reason)})</span>` : '';
       return `
         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 0; border-bottom:1px solid var(--ivory-line);">
-          <div style="font-size:13px;"><b>${esc(p.name)}</b> <span class="ts-team-so">${hcNote}${soNote}</span>${reasonNote}</div>
+          <div style="font-size:13px;"><b>${playerLabel(p)}</b> <span class="ts-team-so">${hcNote}${soNote}</span>${reasonNote}</div>
           ${data.teeOptions.length ? `<select data-team-tee-player="${p.id}" data-team-tee-date="${dateKey}" title="Switch ${p.name.split(' ')[0]}'s tee for today only" style="font-family:'Inter'; font-size:12px; padding:3px 6px; border-radius:5px; border:1px solid var(--ivory-line); color:#6b6a5e;">
             ${data.teeOptions.map(tee => `<option value="${esc(tee)}" ${p.tee===tee?'selected':''}>${esc(tee)}</option>`).join('')}
           </select>` : ''}
@@ -4797,7 +4823,7 @@
         // Just a label here, not a control — switching tees happens in Set up
         // & Bets before the round starts, so there's one place to change it.
         const teeLabelHtml = p.tee ? `<br><span class="ts-team-so">${esc(p.tee)}</span>` : '';
-        return `<tr><td class="ts-score-name">${esc(p.name)}${p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : ''}${teeLabelHtml}</td>${cellsHtml}</tr>`;
+        return `<tr><td class="ts-score-name">${playerLabel(p)}${p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : ''}${teeLabelHtml}</td>${cellsHtml}</tr>`;
       }).join('');
 
       const runningForTeam = lowBallHoleRunning ? lowBallHoleRunning[ti] : null;
@@ -4932,7 +4958,7 @@
         }).join('');
         const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
         const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
-        return `<tr><td class="ts-score-name">${esc(p.name)}${teeNote}${soNote}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
+        return `<tr><td class="ts-score-name">${playerLabel(p)}${teeNote}${soNote}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
       }).join('');
       return `
         <div class="ts-scorecard-block">
@@ -4995,7 +5021,7 @@
       return `
         <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
-            <div class="ts-hbh-player-name">${esc(p.name)}</div>
+            <div class="ts-hbh-player-name">${playerLabel(p)}</div>
             <div class="ts-hbh-player-note">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
           </div>
           <div class="ts-hbh-controls" style="display:flex; align-items:center; gap:6px;">
@@ -5127,7 +5153,7 @@
         <span class="ts-import-row-label">Season Standings</span>
         <p style="margin:6px 0 10px;">Every dated round's $ results, added up per player — teams are redrawn each round, so this tracks people rather than teams. Rounds still in progress count too, using whatever's been decided so far.</p>
         <div class="ts-teams-block">
-          ${seasonStandings.map(p => `<div class="ts-bet-row"><span class="ts-bet-label">${esc(p.name)} <span class="ts-team-so">(${p.roundsPlayed} round${p.roundsPlayed===1?'':'s'})</span></span><span class="ts-bet-result" style="color:${p.total>0?'var(--fairway)':p.total<0?'var(--rust)':'inherit'};">${fmtMoney(p.total)}</span></div>`).join('')}
+          ${seasonStandings.map(p => `<div class="ts-bet-row"><span class="ts-bet-label">${playerLabel(p)} <span class="ts-team-so">(${p.roundsPlayed} round${p.roundsPlayed===1?'':'s'})</span></span><span class="ts-bet-result" style="color:${p.total>0?'var(--fairway)':p.total<0?'var(--rust)':'inherit'};">${fmtMoney(p.total)}</span></div>`).join('')}
         </div>
       </div>` : '<p class="ts-empty">No rounds with teams and a $ result yet.</p>';
 
@@ -5552,9 +5578,9 @@
       const assignedControl = isAdmin
         ? `<select data-panel-duty-key="${r.playKey}">
              <option value="">Unassigned</option>
-             ${sortedRoster().map(p => `<option value="${p.id}" ${r.assigned && r.assigned.id===p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+             ${sortedRoster().map(p => `<option value="${p.id}" ${r.assigned && r.assigned.id===p.id ? 'selected' : ''}>${playerLabel(p)}</option>`).join('')}
            </select>`
-        : `<span class="ts-duty-static">${r.assigned ? esc(r.assigned.name) : 'Unassigned'}</span>`;
+        : `<span class="ts-duty-static">${r.assigned ? playerLabel(r.assigned) : 'Unassigned'}</span>`;
 
       let swapControl = '';
       if(!r.closed && meId && r.assigned && r.assigned.id === meId){
@@ -5622,7 +5648,7 @@
       const padHtml = `<div class="ts-cal-cell ts-cal-blank"></div>`.repeat(padCount);
       const cellsHtml = rows.map(r => {
         const dateLabel = `${String(r.bookDate.getMonth()+1).padStart(2,'0')}/${String(r.bookDate.getDate()).padStart(2,'0')}/${String(r.bookDate.getFullYear()).slice(2)}`;
-        const nameText = r.assigned ? esc(r.assigned.name) : (r.closed ? '' : 'Unassigned');
+        const nameText = r.assigned ? playerLabel(r.assigned) : (r.closed ? '' : 'Unassigned');
         return `<div class="ts-cal-cell"><div class="ts-duty-cal-entry ${r.closed?'closed':''}"><span class="ts-duty-cal-date">${dateLabel}</span> <span class="ts-duty-cal-name">${nameText}</span></div></div>`;
       }).join('');
       calendarHtml = `<div class="ts-cal-grid">${headerHtml}${padHtml}${cellsHtml}</div>
@@ -5669,7 +5695,7 @@
             <option value="">All players</option>
             ${meId ? `<option value="__me__" ${dutyFilterId==='__me__'?'selected':''}>Just my dates</option>` : ''}
             <option value="__unassigned__" ${dutyFilterId==='__unassigned__'?'selected':''}>Unassigned</option>
-            ${sortedRoster().map(p => `<option value="${p.id}" ${dutyFilterId===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+            ${sortedRoster().map(p => `<option value="${p.id}" ${dutyFilterId===p.id?'selected':''}>${playerLabel(p)}</option>`).join('')}
           </select>
         </div>`}
         <div class="ts-duty-panel">
@@ -5695,7 +5721,7 @@
 
       const assignedControl = `<select data-panel-duty-key="${r.playKey}">
            <option value="">Unassigned</option>
-           ${sortedRoster().map(p => `<option value="${p.id}" ${r.assigned && r.assigned.id===p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}
+           ${sortedRoster().map(p => `<option value="${p.id}" ${r.assigned && r.assigned.id===p.id ? 'selected' : ''}>${playerLabel(p)}</option>`).join('')}
          </select>`;
 
       const subText = r.closed
