@@ -5017,7 +5017,7 @@
       // tee-switch control here anymore — once a player starts a round from
       // a tee, that's set in Set up & Bets, not mid-round.
       const hybridTeeHere = hybridTeeForHole(p.tee, hbhHole);
-      const hybridNote = hybridTeeHere ? ` <span class="ts-team-so">Hit from ${esc(hybridTeeHere)} tees</span>` : '';
+      const hybridNote = hybridTeeHere ? ` <span class="ts-team-so">Playing hybrids — hit from ${esc(hybridTeeHere)} tee</span>` : '';
       return `
         <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
