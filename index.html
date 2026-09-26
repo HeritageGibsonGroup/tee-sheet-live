@@ -4866,18 +4866,30 @@
     // pool (allRoundPlayers); only how they're partitioned changes.
     const groupsMode = round.scoringMode === 'groups';
     const groupAssignments = data.playingGroups[dateKey] || {};
+    const numBettingTeams = teamsInfo.teams.length;
+    // There's always one extra "column" beyond the betting-team count in
+    // groups mode — the same overflow group assignGroupsTableHtml labels
+    // "Group " + (numBettingTeams+1) instead of "Unassigned" (see there: with
+    // more players teeing off than betting teams, that column is a real
+    // physical group, not a leftover bucket). This picker needs that same
+    // extra bucket, or a player placed in it would never show up under any
+    // specific "Showing" option — only "All groups".
+    const resolvedGroupIndex = (playerId) => {
+      const assigned = groupAssignments[playerId];
+      return (typeof assigned === 'number' && assigned >= 0 && assigned < numBettingTeams) ? assigned : numBettingTeams;
+    };
     const rosterSource = groupsMode
-      ? Array.from({ length: teamsInfo.teams.length }, (_, gi) => allRoundPlayers.filter(p => groupAssignments[p.id] === gi))
+      ? Array.from({ length: numBettingTeams + 1 }, (_, gi) => allRoundPlayers.filter(p => resolvedGroupIndex(p.id) === gi))
       : teamsInfo.teams;
     const myIndex = meId ? (groupsMode
-      ? (typeof groupAssignments[meId] === 'number' ? groupAssignments[meId] : -1)
+      ? (allRoundPlayers.some(p => p.id === meId) ? resolvedGroupIndex(meId) : -1)
       : teamsInfo.teams.findIndex(team => team.some(p => p.id === meId))
     ) : -1;
     const canPickAny = isAdmin || myIndex === -1;
     let scopeFilter = canPickAny ? scoringTeamFilter : myIndex;
     if(scopeFilter === 'auto') scopeFilter = myIndex !== -1 ? myIndex : 'all';
     if(typeof scopeFilter === 'number' && !rosterSource[scopeFilter]) scopeFilter = 'all';
-    const multipleScopes = teamsInfo.teams.length > 1;
+    const multipleScopes = rosterSource.length > 1;
     const showScopeFilter = canPickAny && multipleScopes;
     const filteredToScope = multipleScopes && scopeFilter !== 'all';
     const visibleRoundPlayers = filteredToScope ? (rosterSource[scopeFilter] || []) : allRoundPlayers;
