@@ -258,7 +258,7 @@
   .ts-hbh-nav-btn-primary:active{ background:var(--fairway-dark); }
   .ts-hbh-nav-btn-primary:disabled{ background:#c7c4b6; border-color:#c7c4b6; color:#fff; opacity:1; }
   .ts-hbh-hole-select{
-    flex:0 1 130px; font-family:'Inter'; font-size:13px; padding:8px 8px; border-radius:7px;
+    flex:0 1 148px; font-family:'Inter'; font-size:15px; padding:10px 8px; border-radius:7px;
     border:1px solid var(--ivory-line); text-align:center;
   }
   /* "Bigger buttons" — an opt-in, remembered per device (see BIG_CONTROLS_KEY).
@@ -298,6 +298,34 @@
   .ts-score-table td.ts-score-stroke .ts-score-display{ border-color:var(--brass); }
   .ts-lowball-row td{ font-weight:700; border-top:2px solid var(--ivory-line); padding-top:6px; color:var(--fairway); }
   .ts-lowball-row td.ts-score-name{ color:var(--ink); font-weight:600; }
+  /* Series results: circles a series' winning score (Scoring & Bets ›
+     Scoreboard). Only ever applied to a single, uniquely-lowest cell — see
+     seriesWinnerIndex — so a tie is simply never circled, no other marking
+     needed to tell the two states apart. */
+  .ts-series-winner{
+    display:inline-block; min-width:1.7em; padding:1px 4px; border-radius:999px;
+    border:2px solid var(--fairway); font-weight:700;
+  }
+  /* Money Status (Scoring & Bets › Money Status) */
+  .ts-money-pending-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    padding:9px 0; border-bottom:1px solid var(--ivory-line); font-size:12.5px;
+  }
+  .ts-money-pending-row:last-child{ border-bottom:none; }
+  .ts-money-pending-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .ts-money-confirm-btn, .ts-money-reject-btn{
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:600; border-radius:16px;
+    padding:6px 12px; cursor:pointer; border:1px solid;
+  }
+  .ts-money-confirm-btn{ background:var(--fairway); color:var(--ivory); border-color:var(--fairway); }
+  .ts-money-reject-btn{ background:var(--ivory); color:var(--rust); border-color:#e2c9c2; }
+  .ts-money-waiting{ color:#8b8a7c; font-style:italic; font-size:12px; }
+  .ts-money-details-toggle{
+    background:none; border:none; padding:0; margin-left:8px; cursor:pointer;
+    font-family:'Inter',sans-serif; font-size:11px; color:#8b8a7c; text-decoration:underline;
+  }
+  .ts-money-details{ margin:4px 0 8px; padding-left:2px; font-size:12px; color:#6b6a5e; }
+  .ts-money-details .ts-bet-row{ font-size:12px; }
   .ts-score-cell-wrap{ position:relative; display:inline-block; }
   .ts-stroke-dot{
     position:absolute; top:3px; right:4px; width:6px; height:6px; border-radius:50%;
@@ -1181,7 +1209,77 @@
     return false;
   }
 
-  let data = { roster: [], signups: {}, duty: {}, closures: {}, notices: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
+  // Logs a new payment claim ("I paid $2 to John"). Same scoped-save /
+  // retry-with-backoff shape as postTeams above — a payment is small and
+  // frequent, so it shouldn't cost a full-blob upload. Always lands as
+  // 'pending' on the backend regardless of what's sent; see
+  // handleSavePayment_ in Code.gs.
+  async function postPayment(payment){
+    const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_payment`;
+    const maxAttempts = 3;
+    let lastError = null;
+    for(let attempt = 1; attempt <= maxAttempts; attempt++){
+      try{
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ payment })
+        });
+        const parsed = JSON.parse(await res.text());
+        if(parsed && parsed.error) throw new Error(parsed.error);
+        if(parsed && Array.isArray(parsed.payments)) data.payments = parsed.payments;
+        if(parsed && typeof parsed.lastModified === 'number'){
+          data._lastModified = parsed.lastModified;
+          lastKnownModified = parsed.lastModified;
+        }
+        return true;
+      }catch(e){
+        lastError = e;
+        if(attempt < maxAttempts) await new Promise(r => setTimeout(r, 400 * attempt));
+      }
+    }
+    console.error('Could not save payment', lastError);
+    await showMessage(
+      "Save didn't go through",
+      (lastError && lastError.message) || "Something went wrong saving — what you see here may not have reached the server. Try again in a moment."
+    );
+    return false;
+  }
+
+  // Confirms or rejects a pending payment. Same retry shape as postPayment.
+  async function postPaymentStatus(paymentId, status){
+    const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=set_payment_status`;
+    const maxAttempts = 3;
+    let lastError = null;
+    for(let attempt = 1; attempt <= maxAttempts; attempt++){
+      try{
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ paymentId, status, resolvedBy: meId })
+        });
+        const parsed = JSON.parse(await res.text());
+        if(parsed && parsed.error) throw new Error(parsed.error);
+        if(parsed && Array.isArray(parsed.payments)) data.payments = parsed.payments;
+        if(parsed && typeof parsed.lastModified === 'number'){
+          data._lastModified = parsed.lastModified;
+          lastKnownModified = parsed.lastModified;
+        }
+        return true;
+      }catch(e){
+        lastError = e;
+        if(attempt < maxAttempts) await new Promise(r => setTimeout(r, 400 * attempt));
+      }
+    }
+    console.error('Could not update payment', lastError);
+    await showMessage(
+      "Save didn't go through",
+      (lastError && lastError.message) || "Something went wrong saving — what you see here may not have reached the server. Try again in a moment."
+    );
+    return false;
+  }
+
+  let data = { roster: [], signups: {}, duty: {}, closures: {}, notices: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], payments: [], moneyStatusStartDate: null, extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
   // Set when the very first load couldn't reach the backend at all (network hiccup,
   // or the fetch timing out per FETCH_TIMEOUT_MS above) — distinct from a
   // successful load that happens to find an empty roster, so init() can show a
@@ -1493,6 +1591,11 @@
     if(!data.teeOptions) data.teeOptions = [];
     if(!data.teams) data.teams = {};
     if(!data.rounds) data.rounds = {};
+    // Money Status: player-to-player payment claims, each starting 'pending'
+    // until the recipient (or an admin) confirms or rejects it — see
+    // computeMoneyStatus() below. Flat list across all dates, same as
+    // data.activityLog, since a payment isn't tied to any one round.
+    if(!data.payments) data.payments = [];
     // Playing-group assignments — a date's players sorted into physical
     // groups for score entry, independent of their betting team (see
     // "Play as Teams" / "Play as Groups" in Set up & Bets). Keyed by date,
@@ -1510,6 +1613,13 @@
     if(typeof data.adminPin === 'undefined') data.adminPin = null;
     if(!data.guestPin) data.guestPin = '3672';
     if(!data.activityLog) data.activityLog = [];
+    // Money Status can be told to only count rounds from a chosen date forward
+    // (see computeMoneyStatus) — e.g. so turning the feature on for the first
+    // time doesn't dump the whole season's already-settled results on everyone
+    // at once. null means "count every round," same as before this existed.
+    // Older rounds still show fine everywhere else (Scoreboard, review) either
+    // way — this only affects the Money Status roll-up.
+    if(typeof data.moneyStatusStartDate === 'undefined') data.moneyStatusStartDate = null;
     // Non-roster addresses that get the "playing tomorrow" reminder alongside
     // every roster player with an email on file — pro shop staff, etc. Seeded
     // once, the first time this field ever loads, with whatever was already
@@ -3051,30 +3161,59 @@
     return `${sign}$${Math.abs(n)}`;
   }
 
-  // Season-long $ leaderboard — rolls every dated round's team totals up to each
-  // individual player, since teams themselves are redrawn fresh for every round
-  // and aren't a stable unit across dates the way players are. A team's result for
-  // a date is shared by everyone on that team, same as the actual bet works.
-  // Rounds still in progress count too (using whatever's decided so far), same as
-  // the per-date view already does, so this stays live rather than only updating
-  // once a round is fully wrapped up. Returns [] if no round has any teams yet.
-  function computeSeasonStandings(){
-    const totals = {}; // playerId -> { id, name, total, roundsPlayed }
-    Object.keys(data.teams).forEach(dateKey => {
+  // Money Status — replaces the old cumulative "Season Standings" leaderboard.
+  // Rolls every dated round's team totals up to each individual player (teams
+  // themselves are redrawn fresh for every round and aren't a stable unit across
+  // dates the way players are — a team's result for a date is shared by everyone
+  // on that team, same as the actual bet works), then nets in every CONFIRMED
+  // payment: paying down what you owe moves your total toward 0 (fromId), and
+  // being paid moves the payee's total toward 0 too (toId) — see the worked
+  // example in handleSetPaymentStatus_'s comment. Pending/rejected payments
+  // don't touch the total at all. Rounds still in progress count too (using
+  // whatever's decided so far), so this stays live. If data.moneyStatusStartDate
+  // is set, rounds before it are skipped entirely here (they still show fine in
+  // Scoreboard/review) — lets the balances start from $0/0 rounds on a chosen
+  // date instead of immediately dumping the whole season's results on everyone
+  // the moment this feature turns on. Returns [] if there's nothing to show yet.
+  function computeMoneyStatus(){
+    const totals = {}; // playerId -> { id, name, total, roundsPlayed, dates: [{dateKey, amount}] }
+    function ensure(id, fallbackName){
+      if(!totals[id]) totals[id] = { id, name: fallbackName || '(unknown player)', total: 0, roundsPlayed: 0, dates: [] };
+      return totals[id];
+    }
+    const startDate = data.moneyStatusStartDate || null;
+    Object.keys(data.teams).sort().forEach(dateKey => {
+      if(startDate && dateKey < startDate) return;
       const standings = computeSeriesStandings(dateKey);
       const teamsInfo = data.teams[dateKey];
       if(!standings || !teamsInfo) return;
       teamsInfo.teams.forEach((team, ti) => {
         const teamTotal = standings.teamTotals[ti] || 0;
         team.forEach(p => {
-          if(!totals[p.id]) totals[p.id] = { id: p.id, name: p.name, total: 0, roundsPlayed: 0 };
-          totals[p.id].name = p.name; // keep the most recent spelling on file
-          totals[p.id].total += teamTotal;
-          totals[p.id].roundsPlayed += 1;
+          const rec = ensure(p.id, p.name);
+          rec.name = p.name; // keep the most recent spelling on file
+          rec.total += teamTotal;
+          rec.roundsPlayed += 1;
+          rec.dates.push({ dateKey, amount: teamTotal });
         });
       });
     });
+    (data.payments || []).forEach(pmt => {
+      if(pmt.status !== 'confirmed') return;
+      const from = ensure(pmt.fromId, nameById(data.roster, pmt.fromId));
+      const to = ensure(pmt.toId, nameById(data.roster, pmt.toId));
+      from.total += pmt.amount;
+      to.total -= pmt.amount;
+    });
     return Object.values(totals).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  }
+
+  // Every payment (any status) that names this player as payer or payee, most
+  // recent first — used for a player's "Details" history in Money Status and
+  // for deciding whether the signed-in viewer has a pending payment to act on.
+  function paymentsInvolving(playerId){
+    return (data.payments || []).filter(p => p.fromId === playerId || p.toId === playerId)
+      .sort((a, b) => b.loggedAt - a.loggedAt);
   }
 
   // Compares this app's current data against a pasted snapshot from the other app,
@@ -4741,7 +4880,7 @@
     const lowBallHoleRunning = computeLowBallHoleRunning(dateKey);
     const gameLabel = round.game === '1ball' ? '1-ball' : '2-ball';
     const exact = holeHandicapsCompleteForTeams(teamsInfo);
-    const seasonStandings = computeSeasonStandings();
+    const moneyStatus = computeMoneyStatus();
 
     // Teams list, right under Round setup — every generated team's players plus
     // anyone not playing, with handicap/strokes-off/tee for reference. The tee
@@ -4928,6 +5067,18 @@
     // group they're standing with.
     const myTeamIndex = meId ? teamsInfo.teams.findIndex(team => team.some(p => p.id === meId)) : -1;
 
+    // Which BETTING team's "vs par" progress to show next to the hole
+    // picker (see hbhProgressLabel below) — always a betting-team index
+    // (lowBallProgress is keyed by teamsInfo.teams), never a physical
+    // group, since the $ bet is always settled by betting team even in
+    // Play as Groups mode. Prefers whatever the "Showing" picker is
+    // actually filtered to (when that's a real betting-team pick, i.e. not
+    // groups mode and not "all"), otherwise falls back to the viewer's own
+    // betting team. Resolves to -1 (no progress shown) for an admin with
+    // "All teams"/"All groups" showing, or a viewer on no team at all —
+    // there's no single team's progress to summarize in either case.
+    const progressTeamIndex = (!groupsMode && typeof scopeFilter === 'number') ? scopeFilter : myTeamIndex;
+
     // Live Scoring's own "Scorecards" section — one full hole 1-18 card per
     // team (viewer's own team first, labeled "(mine)"), showing whatever's
     // actually been posted so far. Unlike teamCardsHtml above (Scoreboard tab,
@@ -5050,6 +5201,19 @@
 
     const hbhRowsHtml = visibleRoundPlayers.map(hbhRowHtml).join('');
 
+    // "+1 Through " / "E Through " / "-1 Through " prefix for the hole
+    // picker's subheading, showing progressTeamIndex's own low-ball score
+    // vs. par for the CURRENT series only (resets each series, same as the
+    // $ bet itself) — blank once nothing's been posted yet this series, or
+    // when there's no single team to summarize (see progressTeamIndex),
+    // so the line falls back to exactly what it said before this existed.
+    const hbhProgressCell = (lowBallProgress && progressTeamIndex !== -1 && lowBallProgress[progressTeamIndex])
+      ? lowBallProgress[progressTeamIndex][hbhSeriesIndex]
+      : null;
+    const hbhProgressLabel = (hbhProgressCell && hbhProgressCell.holesCounted > 0)
+      ? `${fmtRelToPar(hbhProgressCell.relToPar)} Through `
+      : '';
+
     const holeJumpOptionsHtml = flatHoles.map((h, idx) => {
       const p = typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : null;
       return `<option value="${idx}" ${idx===scoringHoleIndex?'selected':''}>Hole ${h}${p !== null ? ` (par ${p})` : ''}</option>`;
@@ -5081,7 +5245,7 @@
           </select>
           <button id="ts-hbh-next-hole" class="ts-hbh-nav-btn ts-hbh-nav-btn-primary" ${nextDisabled?'disabled':''}${nextAttrs}>›</button>
         </div>
-        <div class="ts-team-num" style="margin-top:8px;">Hole ${hbhHole}${hbhPar !== null ? ` <span class="ts-team-so">(par ${hbhPar})</span>` : ''} <span class="ts-team-so">— Series ${hbhSeriesIndex+1}, ${scoringHoleIndex+1} of ${flatHoles.length}</span></div>
+        <div class="ts-team-num" style="margin-top:8px;">Hole ${hbhHole}${hbhPar !== null ? ` <span class="ts-team-so">(par ${hbhPar})</span>` : ''} <span class="ts-team-so">— Series ${hbhSeriesIndex+1}, ${hbhProgressLabel}${scoringHoleIndex+1} of ${flatHoles.length}</span></div>
         ${unsavedBannerHtml}
         ${hbhRowsHtml || '<p class="ts-empty">No players to show for this view.</p>'}
       </div>
@@ -5095,27 +5259,20 @@
           ${liveScorecardsHtml || '<p class="ts-empty">No teams to show yet.</p>'}` : ''}
       </div>`;
 
-    // One table per series — Team columns, "Holes completed" and "{game} vs
-    // par" rows — instead of a paragraph-style list, so all three teams'
-    // progress is readable at a glance without hunting through prose.
-    const lowBallProgressHtml = lowBallProgress ? `
-      <div class="ts-import-row">
-        <span class="ts-import-row-label">Live vs. par</span>
-        ${groups.map((holes, si) => `
-          <div class="ts-teams-block" style="${si===0?'margin-top:6px; padding-top:0; border-top:none;':''}">
-            <div class="ts-team-num">Series ${si+1}</div>
-            <div style="overflow-x:auto;">
-              <table class="ts-score-table">
-                <thead><tr><th></th>${teamsInfo.teams.map((t, ti) => `<th>Team ${ti+1}</th>`).join('')}</tr></thead>
-                <tbody>
-                  <tr><td class="ts-score-name">Holes completed</td>${teamsInfo.teams.map((t, ti) => `<td>${lowBallProgress[ti][si].holesCounted}</td>`).join('')}</tr>
-                  <tr class="ts-lowball-row"><td class="ts-score-name">${esc(gameLabel)} vs par</td>${teamsInfo.teams.map((t, ti) => `<td>${fmtRelToPar(lowBallProgress[ti][si].relToPar)}</td>`).join('')}</tr>
-                </tbody>
-              </table>
-            </div>
-          </div>`).join('')}
-      </div>` : '';
-
+    // Which team (if any) uniquely won a given series, for circling that
+    // team's number in the table below. Only decided once every team has
+    // played the series in full — a currently-leading number mid-series
+    // would misleadingly look final otherwise — and only when exactly one
+    // team has the low score: a tie (2+ teams sharing it) deliberately gets
+    // no winner, per "if there is no circle, the series was tied."
+    const seriesWinnerIndex = (si) => {
+      if (!lowBallProgress) return -1;
+      const cells = teamsInfo.teams.map((t, ti) => lowBallProgress[ti][si]);
+      if (cells.some(c => !c || c.holesCounted < c.holesInSeries)) return -1;
+      const min = Math.min(...cells.map(c => c.relToPar));
+      const winners = cells.reduce((acc, c, ti) => c.relToPar === min ? acc.concat(ti) : acc, []);
+      return winners.length === 1 ? winners[0] : -1;
+    };
     const standingsHtml = standings ? `
       <div class="ts-import-row">
         <span class="ts-import-row-label">Series results (${standings.game === '1ball' ? '1-ball' : '2-ball'})</span>
@@ -5135,7 +5292,9 @@
                   <td class="ts-score-name">Team ${ti+1}</td>
                   ${groups.map((holes, si) => {
                     const cell = lowBallProgress ? lowBallProgress[ti][si] : null;
-                    return `<td>${cell && cell.holesCounted > 0 ? fmtRelToPar(cell.relToPar) : '<span class="ts-empty">–</span>'}</td>`;
+                    if (!cell || cell.holesCounted === 0) return `<td><span class="ts-empty">–</span></td>`;
+                    const won = ti === seriesWinnerIndex(si);
+                    return `<td>${won ? `<span class="ts-series-winner">${fmtRelToPar(cell.relToPar)}</span>` : fmtRelToPar(cell.relToPar)}</td>`;
                   }).join('')}
                   <td style="font-weight:700; color:${total>0?'var(--fairway)':total<0?'var(--rust)':'inherit'};">${fmtMoney(total)}</td>
                 </tr>`;
@@ -5145,17 +5304,119 @@
         </div>
       </div>` : '';
 
-    // Season-wide rollup — not tied to the date picker above at all, since it's
-    // every dated round added together. Still updates live off rounds in
-    // progress, same as the per-date series results do.
-    const seasonStandingsHtml = seasonStandings.length ? `
+    // Money Status — not tied to the date picker above at all, since it's every
+    // dated round (plus payments) added together across the whole season.
+    // Still updates live off rounds in progress, same as the per-date series
+    // results do. A player who owes still shows the owed amount right up until
+    // a payment against it is logged AND confirmed — logging alone doesn't
+    // move the total, since the other side (or an admin) needs to agree it
+    // happened first.
+    function shortDateLabel(dk){
+      const dd = new Date(dk + 'T00:00:00');
+      return `${MON_NAMES[dd.getMonth()]} ${dd.getDate()}`;
+    }
+    // Same name-hiding rule as everywhere else in the app (see playerLabel) —
+    // an anonymous guest sees "Player N" here too, not real names, even
+    // though payments are keyed by roster id under the hood.
+    function moneyPlayerLabel(id){
+      const p = data.roster.find(r => r.id === id);
+      return p ? playerLabel(p) : '(unknown)';
+    }
+    const pendingPayments = (data.payments || []).slice().sort((a,b) => a.loggedAt - b.loggedAt).filter(p => p.status === 'pending');
+    const pendingPaymentsHtml = pendingPayments.length ? `
       <div class="ts-import-row" style="margin-top:0; padding-top:0; border-top:none;">
-        <span class="ts-import-row-label">Season Standings</span>
-        <p style="margin:6px 0 10px;">Every dated round's $ results, added up per player — teams are redrawn each round, so this tracks people rather than teams. Rounds still in progress count too, using whatever's been decided so far.</p>
+        <span class="ts-import-row-label">Needs confirming</span>
         <div class="ts-teams-block">
-          ${seasonStandings.map(p => `<div class="ts-bet-row"><span class="ts-bet-label">${playerLabel(p)} <span class="ts-team-so">(${p.roundsPlayed} round${p.roundsPlayed===1?'':'s'})</span></span><span class="ts-bet-result" style="color:${p.total>0?'var(--fairway)':p.total<0?'var(--rust)':'inherit'};">${fmtMoney(p.total)}</span></div>`).join('')}
+          ${pendingPayments.map(pmt => {
+            const fromLabel = moneyPlayerLabel(pmt.fromId);
+            const toLabel = moneyPlayerLabel(pmt.toId);
+            const canAct = isAdmin || meId === pmt.toId;
+            return `<div class="ts-money-pending-row">
+              <span>${fromLabel} paid ${toLabel} ${fmtMoney(pmt.amount)}${pmt.note ? ` <span class="ts-team-so">— ${esc(pmt.note)}</span>` : ''}</span>
+              ${canAct ? `
+                <span class="ts-money-pending-actions">
+                  <button type="button" class="ts-money-confirm-btn" data-payment-confirm="${pmt.id}">Confirm</button>
+                  <button type="button" class="ts-money-reject-btn" data-payment-reject="${pmt.id}">Reject</button>
+                </span>
+              ` : `<span class="ts-money-waiting">waiting on ${toLabel}${isAdmin ? '' : ' to confirm'}</span>`}
+            </div>`;
+          }).join('')}
         </div>
-      </div>` : '<p class="ts-empty">No rounds with teams and a $ result yet.</p>';
+      </div>` : '';
+
+    // "From" defaults to the signed-in player (if resolved) since logging a
+    // payment you made yourself is the common case; "To" is left blank so a
+    // same-player mistake can't slip through unnoticed.
+    const logPaymentHtml = `
+      <div class="ts-import-row" style="margin-top:${pendingPaymentsHtml ? '18px' : '0'}; ${pendingPaymentsHtml ? '' : 'padding-top:0; border-top:none;'}">
+        <span class="ts-import-row-label">Log a payment</span>
+        <p style="margin:6px 0 10px;">Paid someone, or got paid? Log it here — it needs the other player (or an admin) to confirm before it changes anyone's total.</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <label style="font-size:12px; color:#6b6a5e; font-weight:500;">From
+            <select id="ts-payment-from" style="margin-left:6px; font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
+              ${data.roster.map(p => `<option value="${p.id}" ${meId===p.id?'selected':''}>${playerLabel(p)}</option>`).join('')}
+            </select>
+          </label>
+          <label style="font-size:12px; color:#6b6a5e; font-weight:500;">To
+            <select id="ts-payment-to" style="margin-left:6px; font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
+              <option value="">Select…</option>
+              ${data.roster.map(p => `<option value="${p.id}">${playerLabel(p)}</option>`).join('')}
+            </select>
+          </label>
+          <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Amount
+            <span style="margin-left:6px;">$</span><input id="ts-payment-amount" type="number" min="0" step="1" placeholder="0"
+              style="width:60px; font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--ivory-line);">
+          </label>
+          <input id="ts-payment-note" type="text" placeholder="Note (optional)"
+            style="flex:1 1 160px; min-width:140px; font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
+        </div>
+        <button type="button" id="ts-payment-log-btn" class="ts-accept-scores-btn" style="margin-top:12px; max-width:180px; padding:9px 14px; font-size:13px;">Log payment</button>
+      </div>`;
+
+    // Admin-only control for the moneyStatusStartDate cutoff above — kept
+    // outside the moneyStatus.length check below so it's still reachable
+    // (to set or clear the date) even when nothing qualifies yet, e.g. right
+    // after picking a future/today start date with no rounds played since.
+    const moneyStartDateControlHtml = isAdmin ? `
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 12px; padding-top:10px; border-top:1px dashed var(--ivory-line);">
+        <span style="font-size:12px; color:#6b6a5e;">${data.moneyStatusStartDate ? `Only counting rounds from ${shortDateLabel(data.moneyStatusStartDate)} on.` : 'Counting every round this season.'}</span>
+        <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Start date
+          <input type="date" id="ts-money-start-date" value="${data.moneyStatusStartDate || ''}" style="margin-left:6px; font-family:'Inter'; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+        </label>
+        ${data.moneyStatusStartDate ? `<button type="button" class="ts-money-details-toggle" id="ts-money-start-date-clear">Count everything instead</button>` : ''}
+      </div>
+    ` : (data.moneyStatusStartDate ? `<p style="margin:6px 0 10px; font-size:12px; color:#6b6a5e;">Only counting rounds from ${shortDateLabel(data.moneyStatusStartDate)} on.</p>` : '');
+
+    const moneyBalancesHtml = `
+      <div class="ts-import-row" style="margin-top:18px;">
+        <span class="ts-import-row-label">Balances</span>
+        <p style="margin:6px 0 10px;">Every dated round's $ result, added up per player and netted against confirmed payments — teams are redrawn each round, so this tracks people rather than teams. Rounds still in progress count too, using whatever's been decided so far.</p>
+        ${moneyStartDateControlHtml}
+        ${moneyStatus.length ? `<div class="ts-teams-block">
+          ${moneyStatus.map(p => {
+            const isOpen = !!expanded['money_' + p.id];
+            const history = paymentsInvolving(p.id);
+            const hasDetails = p.dates.length > 0 || history.length > 0;
+            return `<div>
+              <div class="ts-bet-row">
+                <span class="ts-bet-label">${playerLabel(p)} <span class="ts-team-so">(${p.roundsPlayed} round${p.roundsPlayed===1?'':'s'})</span>${hasDetails ? `<button type="button" class="ts-money-details-toggle" data-money-toggle="${p.id}">${isOpen ? 'Hide' : 'Details'}</button>` : ''}</span>
+                <span class="ts-bet-result" style="color:${p.total>0?'var(--fairway)':p.total<0?'var(--rust)':'inherit'};">${fmtMoney(p.total)}</span>
+              </div>
+              ${isOpen ? `<div class="ts-money-details">
+                ${p.dates.map(d => `<div class="ts-bet-row"><span class="ts-bet-label">${shortDateLabel(d.dateKey)}</span><span class="ts-bet-result">${fmtMoney(d.amount)}</span></div>`).join('')}
+                ${history.map(pmt => {
+                  const otherLabel = pmt.fromId === p.id ? moneyPlayerLabel(pmt.toId) : moneyPlayerLabel(pmt.fromId);
+                  const verb = pmt.fromId === p.id ? 'paid' : 'received from';
+                  const statusNote = pmt.status === 'pending' ? ' (pending)' : pmt.status === 'rejected' ? ' (rejected)' : '';
+                  return `<div class="ts-bet-row"><span class="ts-bet-label">${verb} ${otherLabel}${statusNote}${pmt.note ? ` — ${esc(pmt.note)}` : ''}</span><span class="ts-bet-result">${fmtMoney(pmt.amount)}</span></div>`;
+                }).join('')}
+              </div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>` : '<p class="ts-empty">No rounds counted toward Money Status yet.</p>'}
+      </div>`;
+
+    const moneyStatusHtml = pendingPaymentsHtml + logPaymentHtml + moneyBalancesHtml;
 
     el.innerHTML = `
       <div class="ts-roster-panel">
@@ -5169,7 +5430,7 @@
           <button class="ts-subtab ${scoringViewMode==='setup'?'active':''}" data-scoring-view="setup">Set up &amp; Bets</button>
           <button class="ts-subtab ${scoringViewMode==='live'?'active':''}" data-scoring-view="live">Live Scoring</button>
           <button class="ts-subtab ${scoringViewMode==='scoreboard'?'active':''}" data-scoring-view="scoreboard">Scoreboard</button>
-          <button class="ts-subtab ${scoringViewMode==='season'?'active':''}" data-scoring-view="season">Season Standings</button>
+          <button class="ts-subtab ${scoringViewMode==='season'?'active':''}" data-scoring-view="season">Money Status</button>
         </div>
 
         ${scoringViewMode === 'setup' ? `
@@ -5243,8 +5504,9 @@
             <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">With this starting hole, ${groups.map((holes, si) => `Series ${si+1} is holes ${holes[0]}–${holes[holes.length-1]}`).join(', ')}. On a shotgun start, holes don't need to be entered in this order — jump straight to whichever hole your group just finished in Live Scoring, in any order, and come back to fill in the rest later.</p>
           </div>
         ` : scoringViewMode === 'season' ? `
-          <h4 style="margin:16px 0 4px;">Season Standings</h4>
-          ${seasonStandingsHtml}
+          <h4 style="margin:16px 0 4px;">Money Status</h4>
+          <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Who owes whom, net of any confirmed payments — not a cumulative season score, since some players play more rounds than others. A team's result for the day isn't final until the last group posts, so a date can sit unsettled for a bit even after you've left the course.</p>
+          ${moneyStatusHtml}
         ` : scoringViewMode === 'scoreboard' ? `
           <h4 style="margin:16px 0 4px;">Match Scoreboard</h4>
           <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Every team's card, running totals, and the bet's series-by-series results for ${esc(dateLabel)} — read-only, for a glance at how the match stands. Separate from Live Scoring so entering scores doesn't mean scrolling past this.</p>
@@ -5252,7 +5514,6 @@
             ${groups.map((holes, si) => `<button class="ts-subtab ${scoreboardSeriesFilter===si?'active':''}" data-scoreboard-series="${si}">Series ${si+1}</button>`).join('')}
           </div>
           ${teamCardsHtml}
-          ${lowBallProgressHtml}
           ${standingsHtml}
         ` : `
           <h4 style="margin:16px 0 4px;">Live Scoring</h4>
@@ -6740,6 +7001,83 @@
         render();
       });
     });
+
+    // Money Status: expand/collapse a player's date-by-date and payment
+    // history — purely local UI state (expanded), same pattern as the
+    // roster/schedule expand toggles elsewhere.
+    document.querySelectorAll('[data-money-toggle]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.getAttribute('data-money-toggle');
+        expanded['money_' + pid] = !expanded['money_' + pid];
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-payment-confirm]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-payment-confirm');
+        btn.disabled = true;
+        await postPaymentStatus(id, 'confirmed');
+        render();
+      });
+    });
+
+    document.querySelectorAll('[data-payment-reject]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-payment-reject');
+        const sure = await askConfirm('Reject this payment?', 'The person who logged it will need to log it again if this was a mistake.', 'Reject', 'Cancel');
+        if(!sure) return;
+        btn.disabled = true;
+        await postPaymentStatus(id, 'rejected');
+        render();
+      });
+    });
+
+    const paymentLogBtn = document.getElementById('ts-payment-log-btn');
+    if(paymentLogBtn){
+      paymentLogBtn.addEventListener('click', async () => {
+        const fromSel = document.getElementById('ts-payment-from');
+        const toSel = document.getElementById('ts-payment-to');
+        const amountInput = document.getElementById('ts-payment-amount');
+        const noteInput = document.getElementById('ts-payment-note');
+        const fromId = fromSel.value;
+        const toId = toSel.value;
+        const amount = parseFloat(amountInput.value);
+        if(!toId){ await showMessage("Who'd you pay?", 'Pick who this payment is to before logging it.'); return; }
+        if(fromId === toId){ await showMessage("Same player twice", 'A payment needs two different players.'); return; }
+        if(isNaN(amount) || amount <= 0){ await showMessage('Amount needed', 'Enter an amount greater than $0.'); return; }
+        paymentLogBtn.disabled = true;
+        const payment = {
+          id: 'pay_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+          fromId, toId, amount,
+          note: (noteInput.value || '').trim(),
+          loggedBy: meId || fromId
+        };
+        const ok = await postPayment(payment);
+        paymentLogBtn.disabled = false;
+        if(ok) render();
+      });
+    }
+
+    // Money Status start-date cutoff — a plain global admin setting, saved
+    // the same way adminPin/guestPin are (a small, infrequent change, so the
+    // regular full saveData() is fine here; no need for its own scoped action).
+    const moneyStartDateInput = document.getElementById('ts-money-start-date');
+    if(moneyStartDateInput){
+      moneyStartDateInput.addEventListener('change', async () => {
+        data.moneyStatusStartDate = moneyStartDateInput.value || null;
+        await saveData();
+        render();
+      });
+    }
+    const moneyStartDateClearBtn = document.getElementById('ts-money-start-date-clear');
+    if(moneyStartDateClearBtn){
+      moneyStartDateClearBtn.addEventListener('click', async () => {
+        data.moneyStatusStartDate = null;
+        await saveData();
+        render();
+      });
+    }
 
     document.querySelectorAll('[data-schedule-sort]').forEach(btn => {
       btn.addEventListener('click', () => {
