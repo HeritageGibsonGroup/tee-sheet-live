@@ -1705,7 +1705,7 @@
       isRoot ? 'The topic and all of its replies will be removed for everyone.' : 'This reply will be removed for everyone.',
       'Delete', 'Keep');
     if(!ok) return;
-    await commsRequest('delete_comms', { id, requesterId: meId });
+    await commsRequest('delete_comms', { id, requesterId: meId, adminPin: isAdmin ? (data.adminPin || '') : '' });
     renderCommsPanel(document.getElementById('ts-comms-panel') || el);
   }
   // Background refresh: every 30s while Communications is open (so replies
@@ -6804,7 +6804,7 @@ function computedCourseHandicap(indexVal, tee){
           const res = await fetchWithTimeout(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=set_messages_enabled`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify({ enabled: turnOn, requesterId: meId })
+            body: JSON.stringify({ enabled: turnOn, requesterId: meId, adminPin: data.adminPin || '' })
           });
           const parsed = JSON.parse(await res.text());
           if(parsed && parsed.error) throw new Error(parsed.error);
