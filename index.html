@@ -94,6 +94,16 @@
     background:none; border:1px solid var(--ivory-line); padding:7px 12px; border-radius:7px; cursor:pointer;
   }
   .ts-manage-btn:hover{ background:var(--ivory); }
+  .ts-login-card{ max-width:380px; margin:18px auto 0; background:#fff; border:1px solid var(--ivory-line); border-radius:12px; padding:20px 18px; }
+  .ts-login-card label{ display:block; font-size:12.5px; color:#6b6a5e; font-weight:600; margin:10px 0 6px; }
+  .ts-login-card input{ width:100%; font-family:'Inter',sans-serif; font-size:16px; padding:11px 12px; border-radius:8px; border:1px solid var(--ivory-line); background:#fff; color:var(--ink); }
+  .ts-login-btn{ width:100%; margin-top:14px; font-family:'Inter',sans-serif; font-size:15px; font-weight:600; padding:12px; border:none; border-radius:8px; background:var(--fairway); color:var(--ivory); cursor:pointer; }
+  .ts-login-alt{ margin-top:14px; display:flex; justify-content:center; gap:10px; align-items:center; }
+  .ts-login-alt > span{ display:none; }
+  .ts-login-alt .ts-pin-link{ flex:1; font-family:'Inter',sans-serif; font-size:14px; font-weight:600; text-decoration:none; color:var(--fairway); background:#fff; border:1.5px solid var(--fairway); border-radius:8px; padding:11px 10px; cursor:pointer; }
+  .ts-login-alt .ts-pin-link:hover{ background:var(--ivory); }
+  .ts-login-note{ margin:0 0 4px; font-size:13.5px; color:var(--ink); line-height:1.45; }
+  .ts-login-err{ min-height:18px; margin:12px 0 0; color:var(--rust); font-size:13px; line-height:1.4; }
   .ts-pin-link{
     font-size:11.5px; color:#6b6a5e; text-decoration:underline; cursor:pointer; background:none; border:none; padding:0;
   }
@@ -819,6 +829,7 @@
   const ADMIN_GATE_KEY = IS_LIVE_ENV ? 'golf-league-admin-gate-players' : 'golf-league-admin-gate-players-TEST';
   const VERIFIED_KEY = IS_LIVE_ENV ? 'golf-league-verified-players' : 'golf-league-verified-players-TEST';
   const GUEST_UNLOCK_KEY = IS_LIVE_ENV ? 'golf-league-guest-unlocked' : 'golf-league-guest-unlocked-TEST';
+  const LOGIN_REQ_KEY = IS_LIVE_ENV ? 'golf-league-login-required' : 'golf-league-login-required-TEST';
   // Remembered per device, not per login — someone who needs bigger targets
   // needs them every round, and asking again each time would defeat the point.
   const BIG_CONTROLS_KEY = IS_LIVE_ENV ? 'golf-league-big-controls' : 'golf-league-big-controls-TEST';
@@ -1757,6 +1768,9 @@
   // roster identity. Only matters for someone who never picks a name (a true visitor);
   // a recognized player or an admin never needs it.
   let isGuestVerified = false;
+  // Admin switch (Admin > Reminders > Require login), stored on the server. When true, nobody sees
+  // the roster until they sign in with their email address and PIN (or the guest / admin PIN).
+  let loginRequired = false;
   let expanded = {};
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
   let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'comms' | 'admin'
@@ -2567,6 +2581,184 @@
     }
     await showMessage('Incorrect PIN', 'That PIN doesn\'t match. Try again.');
     return false;
+  }
+
+  // --- email-then-PIN sign-in screen (only when an admin has switched on "Require login").
+  // Nothing from the roster is drawn until someone gets through it, so no names are shown
+  // beforehand. NOTE: this is a screen, not a lock — the roster data is still downloaded
+  // by the browser behind it. It keeps casual visitors from seeing names; it is not
+  // protection against someone who inspects the page.
+  async function fetchLoginSetting(){
+    try{
+      const res = await fetchWithTimeout(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=get_login_setting`);
+      const parsed = JSON.parse(await res.text());
+      if(parsed && !parsed.error && typeof parsed.required === 'boolean'){
+        loginRequired = parsed.required;
+        try{ localStorage.setItem(LOGIN_REQ_KEY, loginRequired ? 'true' : 'false'); }catch(e){}
+        return true;
+      }
+    }catch(e){}
+    // Couldn't ask the server (or it doesn't know the setting yet) — use what this device last saw.
+    try{ loginRequired = localStorage.getItem(LOGIN_REQ_KEY) === 'true'; }catch(e){ loginRequired = false; }
+    return false;
+  }
+
+  function loginGateNeeded(){
+    if(!loginRequired || data.roster.length === 0) return false;
+    if(isAdmin || isGuestVerified) return false;
+    return !(meId && data.roster.some(p => p.id === meId));
+  }
+
+  function rosterByEmail(raw){
+    const e = String(raw || '').trim().toLowerCase();
+    if(!e) return [];
+    return data.roster.filter(p => p.email && String(p.email).trim().toLowerCase() === e);
+  }
+
+  function showLoginGate(){
+    return new Promise(resolve => {
+      let step = 'email', email = '', cands = [], err = '', busy = false;
+      const finishPlayer = async (id) => {
+        if(!verifiedPlayers.includes(id)){ verifiedPlayers.push(id); await persistVerified(); }
+        await persistMe(id);
+        const p = data.roster.find(x => x.id === id);
+        if(p && p.isAdmin && adminGatePlayers.includes(id)) isAdmin = true;
+        root.innerHTML = '';
+        resolve(true);
+      };
+      const draw = () => {
+        let body = '';
+        if(step === 'email'){
+          body = `
+            <label for="ts-login-email">Email address</label>
+            <input id="ts-login-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="you@example.com" value="${esc(email)}">
+            <button class="ts-login-btn" id="ts-login-next">Continue</button>
+            <div class="ts-login-alt">
+              <button class="ts-pin-link" id="ts-login-guest">I'm a guest</button>
+              
+              <button class="ts-pin-link" id="ts-login-admin">League admin</button>
+            </div>`;
+        } else if(step === 'pin'){
+          body = `
+            <label for="ts-login-pin">Enter your PIN</label>
+            <input id="ts-login-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN">
+            <button class="ts-login-btn" id="ts-login-next">Sign in</button>
+            <div class="ts-login-alt"><button class="ts-pin-link" id="ts-login-back">Use a different email</button></div>`;
+        } else if(step === 'newpin'){
+          body = `
+            <p class="ts-login-note">First time signing in. Choose a 4-digit PIN — you'll need it again on other devices.</p>
+            <label for="ts-login-pin">New PIN</label>
+            <input id="ts-login-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 digits">
+            <label for="ts-login-pin2">Confirm PIN</label>
+            <input id="ts-login-pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 digits again">
+            <button class="ts-login-btn" id="ts-login-next">Save PIN &amp; sign in</button>
+            <div class="ts-login-alt"><button class="ts-pin-link" id="ts-login-back">Use a different email</button></div>`;
+        } else if(step === 'guest'){
+          body = `
+            <label for="ts-login-pin">Guest PIN</label>
+            <input id="ts-login-pin" type="password" autocomplete="off" placeholder="Guest PIN">
+            <button class="ts-login-btn" id="ts-login-next">Continue as guest</button>
+            <div class="ts-login-alt"><button class="ts-pin-link" id="ts-login-back">Back</button></div>`;
+        } else {
+          body = `
+            <label for="ts-login-pin">Admin PIN</label>
+            <input id="ts-login-pin" type="password" autocomplete="off" placeholder="Admin PIN">
+            <button class="ts-login-btn" id="ts-login-next">Continue as admin</button>
+            <div class="ts-login-alt"><button class="ts-pin-link" id="ts-login-back">Back</button></div>`;
+        }
+        root.innerHTML = `
+          ${testBannerHtml()}
+          <div class="ts-header">
+            <p class="ts-eyebrow">Tee Sheet</p>
+            <h1 class="ts-title">Heritage Gibson Group</h1>
+            <p class="ts-sub">Sign in to continue.</p>
+          </div>
+          <div class="ts-body">
+            <div class="ts-login-card" id="ts-login-card">
+              ${body}
+              <p class="ts-login-err" id="ts-login-err" role="alert">${esc(err)}</p>
+            </div>
+          </div>`;
+        const first = document.getElementById(step === 'email' ? 'ts-login-email' : 'ts-login-pin');
+        if(first) first.focus();
+        const bind = (id, fn) => { const el = document.getElementById(id); if(el) el.onclick = fn; };
+        bind('ts-login-next', submit);
+        bind('ts-login-back', () => { step = 'email'; err = ''; cands = []; draw(); });
+        bind('ts-login-guest', () => { step = 'guest'; err = ''; draw(); });
+        bind('ts-login-admin', () => { step = 'admin'; err = ''; draw(); });
+        root.querySelectorAll('#ts-login-card input').forEach(inp => {
+          inp.addEventListener('keydown', (e) => { if(e.key === 'Enter') submit(); });
+        });
+      };
+      const val = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+      const submit = async () => {
+        if(busy) return;
+        busy = true;
+        try{
+          err = '';
+          if(step === 'email'){
+            email = val('ts-login-email');
+            if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err = 'Enter your full email address.'; return draw(); }
+            cands = rosterByEmail(email);
+            if(cands.length === 0){ err = "We don't have that email on file. Check the spelling, or ask an admin to add it."; return draw(); }
+            const anyPin = cands.some(p => data.playerPins[p.id]);
+            if(!anyPin){
+              if(cands.length > 1){ err = 'More than one player is listed with that email. Ask an admin to sort it out.'; return draw(); }
+              step = 'newpin';
+            } else step = 'pin';
+            return draw();
+          }
+          if(step === 'pin'){
+            const entered = val('ts-login-pin');
+            const match = cands.find(p => data.playerPins[p.id] && String(data.playerPins[p.id]) === entered);
+            if(!match){ err = "That PIN doesn't match."; return draw(); }
+            return await finishPlayer(match.id);
+          }
+          if(step === 'newpin'){
+            const a = val('ts-login-pin'), b = val('ts-login-pin2');
+            if(!/^\d{4}$/.test(a)){ err = 'Enter exactly 4 numbers, like 1234.'; return draw(); }
+            if(a !== b){ err = "The two PINs don't match."; return draw(); }
+            const id = cands[0].id;
+            data.playerPins[id] = a;
+            const ok = await saveData();
+            if(ok === false){ delete data.playerPins[id]; err = "Couldn't save your PIN. Try again."; return draw(); }
+            return await finishPlayer(id);
+          }
+          if(step === 'guest'){
+            const entered = val('ts-login-pin');
+            if(!data.guestPin){ err = "Guest access isn't set up. Ask an admin."; return draw(); }
+            if(entered !== String(data.guestPin)){ err = "That PIN doesn't match."; return draw(); }
+            isGuestVerified = true;
+            try{ localStorage.setItem(GUEST_UNLOCK_KEY, 'true'); }catch(e){}
+            root.innerHTML = '';
+            return resolve(true);
+          }
+          if(step === 'admin'){
+            const entered = val('ts-login-pin');
+            if(!data.adminPin){ err = "No admin PIN has been set yet."; return draw(); }
+            if(entered !== String(data.adminPin)){ err = "That PIN doesn't match."; return draw(); }
+            await persistSuperAdmin(true);
+            root.innerHTML = '';
+            return resolve(true);
+          }
+        } finally { busy = false; }
+      };
+      draw();
+    });
+  }
+
+  // Used by the "Sign out" link when sign-in is required: forgets who this device is
+  // (player, guest and admin unlocks) and goes back to the sign-in screen.
+  async function signOutToLogin(){
+    await persistMe(null);
+    if(isSuperAdmin) await persistSuperAdmin(false);
+    isAdmin = false;
+    isGuestVerified = false;
+    try{ localStorage.setItem(GUEST_UNLOCK_KEY, 'false'); }catch(e){}
+    activeSection = 'schedule';
+    root.innerHTML = '';
+    if(loginGateNeeded()) await showLoginGate();
+    render();
   }
 
   // Runs once on load (and whenever no one's identified yet): proactively asks who's
@@ -4527,7 +4719,9 @@ function computedCourseHandicap(indexVal, tee){
         }
       });
     } else {
-      reminders.push(`<div class="ts-reminder"><span class="flag">👋</span><div>Pick <b>who you are</b> above to sign up for tee times and get reminders.</div></div>`);
+      reminders.push(loginRequired
+        ? `<div class="ts-reminder"><span class="flag">👋</span><div>To sign up for tee times and get reminders, <b>sign out</b> above and sign in with your email address.</div></div>`
+        : `<div class="ts-reminder"><span class="flag">👋</span><div>Pick <b>who you are</b> above to sign up for tee times and get reminders.</div></div>`);
     }
 
     const me = data.roster.find(p => p.id === meId);
@@ -4546,6 +4740,7 @@ function computedCourseHandicap(indexVal, tee){
         <p class="ts-sub">Pick your dates below — and if you can only play 9, say so. Booking duty is set by the league admin; the club opens tee time booking ${BOOKING_WINDOW_DAYS} days out.</p>
       </div>
       <div class="ts-body">
+        ${loginRequired ? `<div class="ts-whoami"><label>Signed in as</label> <strong>${me ? esc(me.name) : (isAdmin ? 'League admin' : 'Guest')}</strong> <span style="color:#6b6a5e;">·</span> <button class="ts-pin-link" id="ts-sign-out" style="margin:0;">Sign out</button></div>` : `
         <div class="ts-whoami">
           <label>I'm —</label>
           <select id="ts-who-select">
@@ -4553,6 +4748,7 @@ function computedCourseHandicap(indexVal, tee){
             ${sortedRoster().map(p => `<option value="${p.id}" ${p.id===meId?'selected':''}>${esc(p.name) /* always the real name here, even for a guest — this is the one control that lets someone leave guest mode and pick their own name */}</option>`).join('')}
           </select>
         </div>
+        `}
         ${me ? `<div style="margin-top:6px;"><button class="ts-pin-link" id="ts-set-pin">${meHasPin ? 'Change my PIN' : 'Protect my signups with a PIN'}</button></div>` : ''}
         ${me && data.teeOptions.length ? `
           <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -5069,6 +5265,12 @@ function computedCourseHandicap(indexVal, tee){
           <span class="ts-import-row-label">Messages</span>
           <p style="margin:0 0 10px;">Messages lets players post topics and reply, and emails new topics to the group. It is currently <strong>${commsEnabled === true ? 'ON' : (commsEnabled === false ? 'OFF' : 'checking…')}</strong>. When it is off the Messages tab is hidden for everyone and nothing is emailed; existing messages are kept and come back when you turn it on. Players' devices pick up a change within a minute or two.</p>
           <button id="ts-messages-toggle" ${commsEnabled === null ? 'disabled' : ''}>${commsEnabled === true ? 'Turn Messages off' : 'Turn Messages on'}</button>
+        </div>
+        <div class="ts-import-row ts-ci-section">
+          <span class="ts-import-row-label">Require login</span>
+          <p style="margin:0 0 10px;">When this is <strong>ON</strong>, the app opens to a sign-in screen: players enter their email address, then their PIN, and no names are shown before that. Guests use the "I'm a guest" link with the guest PIN, and the league admin uses the "League admin" link. Devices already signed in stay signed in until they tap Sign out. It is currently <strong>${loginRequired ? 'ON' : 'OFF'}</strong>.</p>
+          <p style="margin:0 0 10px; font-size:12.5px; color:#6b6a5e;">This is a sign-in screen, not a lock: the roster information is still sent to the browser behind it, so it keeps casual visitors from seeing names but would not stop someone technical. ${(() => { const missing = data.roster.filter(p => !p.isGuest && !p.email); return missing.length ? `<b>${missing.length} player${missing.length === 1 ? ' has' : 's have'} no email on file</b> and could not sign in until you add one in League Roster: ${missing.map(p => esc(p.name)).join(', ')}.` : 'Every player has an email on file.'; })()}</p>
+          <button id="ts-login-toggle">${loginRequired ? 'Turn login off' : 'Turn login on'}</button>
         </div>
         <div class="ts-import-row ts-ci-section">
           <span class="ts-import-row-label">Pro shop</span>
@@ -6790,6 +6992,36 @@ function computedCourseHandicap(indexVal, tee){
         render();
       };
     }
+    const loginToggleBtn = document.getElementById('ts-login-toggle');
+    if(loginToggleBtn){
+      loginToggleBtn.onclick = async () => {
+        if(!isAdmin) return;
+        const turnOn = !loginRequired;
+        if(turnOn){
+          const missing = data.roster.filter(p => !p.isGuest && !p.email);
+          const ok = await askConfirm('Turn on the sign-in screen?',
+            'Everyone opening the app will need to sign in with their email address and PIN (or use the guest link). ' +
+            (missing.length ? missing.length + ' player' + (missing.length === 1 ? ' has' : 's have') + ' no email on file and will not be able to sign in until you add one. ' : '') +
+            'You stay signed in on this device.', 'Turn on', 'Cancel');
+          if(!ok) return;
+        }
+        loginToggleBtn.disabled = true;
+        try{
+          const res = await fetchWithTimeout(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=set_login_required`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ required: turnOn, requesterId: meId, adminPin: data.adminPin || '' })
+          });
+          const parsed = JSON.parse(await res.text());
+          if(parsed && parsed.error) throw new Error(parsed.error);
+          loginRequired = !!(parsed && parsed.required);
+          try{ localStorage.setItem(LOGIN_REQ_KEY, loginRequired ? 'true' : 'false'); }catch(e){}
+        }catch(e){
+          await showMessage("Didn't go through", (e && e.message) || 'Could not reach the server. Try again in a moment.');
+        }
+        render();
+      };
+    }
     const messagesToggleBtn = document.getElementById('ts-messages-toggle');
     if(messagesToggleBtn){
       messagesToggleBtn.onclick = async () => {
@@ -7412,6 +7644,10 @@ function computedCourseHandicap(indexVal, tee){
       });
     });
 
+    const signOutBtn = document.getElementById('ts-sign-out');
+    if(signOutBtn){
+      signOutBtn.onclick = async () => { await signOutToLogin(); };
+    }
     const who = document.getElementById('ts-who-select');
     if(who){
       who.onchange = async () => {
@@ -8098,7 +8334,7 @@ function computedCourseHandicap(indexVal, tee){
   }
 
   (async function init(){
-    await loadData();
+    await Promise.all([loadData(), fetchLoginSetting()]);
     if(bootError){
       // Couldn't reach the backend at all on this, the very first load — show a
       // clear retry screen instead of either hanging on "setting the tee sheet…"
@@ -8115,6 +8351,7 @@ function computedCourseHandicap(indexVal, tee){
       return;
     }
     applyBigControlsClass();
+    if(loginGateNeeded()) await showLoginGate();
     render();
     await reverifyIfNeeded();
     await autoIdentifyIfNeeded();
