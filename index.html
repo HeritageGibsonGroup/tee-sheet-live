@@ -107,6 +107,60 @@
     cursor:pointer; padding:14px 8px; color:var(--fairway);
     box-shadow:0 2px 6px rgba(27,67,50,0.06); transition:all .15s ease;
   }
+  .ts-tab{ position:relative; }
+  .ts-tab{ min-width:0; }
+  #ts-comms-panel{ margin-top:14px; }
+  @media (max-width:640px){
+    .ts-tabbar{ flex-wrap:wrap; gap:8px; }
+    .ts-tab{ flex:1 1 calc(33.333% - 8px); padding:10px 4px; }
+    .ts-tab-icon{ font-size:22px; }
+  }
+  .ts-tab-badge{
+    position:absolute; top:6px; right:8px; min-width:20px; padding:1px 6px; border-radius:999px;
+    background:#B3261E; color:#fff; font-size:11.5px; font-weight:700; text-align:center; line-height:17px;
+  }
+  .ts-comms-input{
+    width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:9px 11px; border-radius:8px;
+    border:1px solid var(--ivory-line); box-sizing:border-box; resize:vertical;
+  }
+  .ts-comms-aud{
+    display:inline-block; background:#E8EFE9; color:var(--fairway); font-size:11px; font-weight:600;
+    padding:1px 8px; border-radius:999px; vertical-align:middle; margin-left:4px;
+  }
+  .ts-comms-notice{ margin-top:8px; padding:8px 10px; border-radius:8px; font-size:13px; }
+  .ts-comms-notice.ok{ background:#E8EFE9; color:var(--fairway); }
+  .ts-comms-notice.warn{ background:#FBEFD5; color:#7a5a12; }
+  .ts-comms-aud-label{ display:block; font-size:12.5px; font-weight:600; color:#6b6a5e; margin-bottom:4px; }
+  .ts-comms-btn{
+    background:var(--fairway); color:var(--ivory); border:none; padding:9px 16px; border-radius:8px;
+    font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .ts-comms-btn:disabled{ opacity:.55; cursor:default; }
+  .ts-comms-head{
+    display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; text-align:left;
+    background:none; border:none; padding:13px 15px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .ts-comms-head:hover{ background:#FBFAF5; }
+  .ts-comms-title{ font-size:15px; font-weight:700; color:var(--fairway); }
+  .ts-comms-sub{ font-size:12px; color:#6b6a5e; }
+  .ts-comms-preview{ font-size:13px; color:#3d3c34; }
+  .ts-comms-new{
+    display:inline-block; background:var(--brass); color:#fff; font-size:10.5px; font-weight:700;
+    padding:1px 7px; border-radius:999px; vertical-align:middle; margin-left:4px; letter-spacing:.03em;
+  }
+  .ts-comms-body{ border-top:1px solid var(--ivory-line); padding:6px 15px 14px; }
+  .ts-comms-msg{ padding:10px 0; border-bottom:1px dashed var(--ivory-line); }
+  .ts-comms-msg.root .ts-comms-msg-body{ font-size:14.5px; }
+  .ts-comms-msg-meta{ font-size:12px; color:#6b6a5e; margin-bottom:3px; }
+  .ts-comms-msg-body{ font-size:14px; line-height:1.45; word-wrap:break-word; overflow-wrap:anywhere; }
+  .ts-comms-del{
+    background:none; border:none; color:#B3261E; font-size:12px; cursor:pointer; margin-left:8px; padding:0; text-decoration:underline;
+  }
+  .ts-comms-reply{ display:flex; gap:8px; align-items:flex-end; margin-top:12px; }
+  .ts-comms-reply textarea{
+    flex:1; font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--ivory-line); resize:vertical;
+  }
   .ts-tab-icon{ font-size:26px; line-height:1; }
   .ts-tab-label{ font-size:13px; font-weight:700; text-align:center; }
   .ts-tab.active{ background:var(--fairway); color:var(--ivory); border-color:var(--fairway); box-shadow:0 4px 14px rgba(27,67,50,0.22); }
@@ -794,7 +848,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'September 26, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'October 5, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -912,6 +966,62 @@
         body: JSON.stringify({ dateKey, playerName })
       });
     }catch(e){ /* best-effort */ }
+  }
+
+  // A drop-out can leave one tee time more than we need (9 players on 3 tee
+  // times, one drops, 8 only need 2). When that happens the backend emails the
+  // pro shop (to release it to the public), the remaining players and the
+  // booking-duty person. Only for dates where a confirmed tee-time count was
+  // actually logged; `needed` is based on everyone still signed up (standby
+  // included), so a drop-out that merely promotes someone off standby never
+  // triggers it. Best-effort, like the other notifications.
+  function maybeNotifyExtraTeeTime(dateKey, signedUpBefore, signedUpAfter, droppedPlayer){
+    try{
+      const booked = data.confirmedTeeTimes && data.confirmedTeeTimes[dateKey];
+      if(typeof booked !== 'number' || booked < 1 || signedUpAfter < 1) return;
+      const neededBefore = Math.ceil(signedUpBefore / PLAYERS_PER_TEE_TIME);
+      const neededAfter = Math.ceil(signedUpAfter / PLAYERS_PER_TEE_TIME);
+      if(!(neededAfter < neededBefore && neededAfter < booked)) return;
+      const playerIds = (data.signups[dateKey] || []).map(x => x.id);
+      const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=notify_extra_teetime`;
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ dateKey, neededTimes: neededAfter, bookedTimes: booked, playerIds, playerName: droppedPlayer ? droppedPlayer.name : 'A player' })
+      }).catch(() => {});
+    }catch(e){ /* best-effort */ }
+  }
+
+  // Standby players are moved up automatically (the confirmed list is simply
+  // the first N signups) and emailed when it happens. This is the in-app
+  // backstop: the next time that player opens the app, say so — useful if
+  // they have no email on file or missed it. Remembers, per device and per
+  // player, what each upcoming date looked like last time (standby/confirmed).
+  const SIGNUP_STATUS_KEY = IS_LIVE_ENV ? 'golf-league-signup-status' : 'golf-league-signup-status-TEST';
+  async function checkPromotionNotice(){
+    if(!meId) return;
+    const me = data.roster.find(p => p.id === meId);
+    if(!me) return;
+    let all = {};
+    try{ all = JSON.parse(localStorage.getItem(SIGNUP_STATUS_KEY) || '{}') || {}; }catch(e){ all = {}; }
+    const prev = all[meId] || {};
+    const todayKey = fmtDateKey(new Date());
+    const next = {};
+    const promoted = [];
+    Object.keys(data.signups || {}).sort().forEach(key => {
+      if(key < todayKey || (data.closures && data.closures[key])) return;
+      const list = data.signups[key] || [];
+      if(!list.some(x => x.id === meId)) return;
+      const status = splitConfirmedStandby(list, capacityFor(key)).confirmed.some(x => x.id === meId) ? 'confirmed' : 'standby';
+      next[key] = status;
+      if(prev[key] === 'standby' && status === 'confirmed') promoted.push(key);
+    });
+    all[meId] = next;
+    try{ localStorage.setItem(SIGNUP_STATUS_KEY, JSON.stringify(all)); }catch(e){}
+    if(promoted.length){
+      const labels = promoted.map(k => { const d = new Date(k + 'T00:00:00'); return d.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }); });
+      await showMessage("You're in!", "A spot opened up — you're no longer on standby and are now confirmed to play on " + labels.join(' and ') + '.');
+    }
   }
 
   // Asks the backend to build (but not send) the handicap update email —
@@ -1279,7 +1389,354 @@
     return false;
   }
 
-  let data = { roster: [], signups: {}, duty: {}, closures: {}, notices: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], payments: [], moneyStatusStartDate: null, extraReminderEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'] };
+  // ---------------------------------------------------------------------
+  // COMMUNICATIONS (message board). Messages live in their own Sheet tab on
+  // the backend (not in the big data blob), fetched with get_comms and
+  // changed only through post_comms / delete_comms. A "topic" has replies
+  // under it. Unread tracking is per device, per player (localStorage).
+  // ---------------------------------------------------------------------
+  const COMMS_SEEN_KEY = IS_LIVE_ENV ? 'golf-league-comms-seen' : 'golf-league-comms-seen-TEST';
+  let commsMessages = [];
+  let commsLoaded = false;
+  let commsPosting = false;
+  let commsNotice = null;         // one-time note shown after posting a topic: { ok, text }
+  let commsSnapshotSeen = null;   // "seen" time as of when the Communications tab was opened (for NEW markers)
+  let commsExpanded = new Set();
+  let commsDrafts = { newTitle: '', newBody: '', audience: 'roster', replies: {} };
+  let commsTickCount = 0;
+  // Master switch for Messages, controlled by an admin (Admin > Reminders). null =
+  // not heard from the backend yet (the tab stays hidden until it says on). An
+  // older backend that does not report the switch is treated as on.
+  let commsEnabled = null;
+
+  function commsReadSeenMap(){
+    try{ return JSON.parse(localStorage.getItem(COMMS_SEEN_KEY) || '{}') || {}; }catch(e){ return {}; }
+  }
+  function commsSeenAt(){
+    if(!meId) return null;
+    const v = commsReadSeenMap()[meId];
+    return typeof v === 'number' ? v : null;
+  }
+  function commsSetSeenAt(ts){
+    if(!meId) return;
+    try{
+      const m = commsReadSeenMap();
+      if(typeof m[meId] === 'number' && m[meId] >= ts) return;
+      m[meId] = ts;
+      localStorage.setItem(COMMS_SEEN_KEY, JSON.stringify(m));
+    }catch(e){}
+  }
+  function commsLatestTs(){
+    return commsMessages.reduce((mx, m) => Math.max(mx, m.createdAt || 0), 0);
+  }
+  function commsUnreadCount(){
+    if(!meId || !commsLoaded) return 0;
+    const seen = commsSeenAt();
+    if(seen === null) return 0;
+    return commsMessages.filter(m => m.authorId !== meId && (m.createdAt || 0) > seen).length;
+  }
+  function commsUpdateBadge(){
+    const n = commsUnreadCount();
+    const badge = document.getElementById('ts-comms-badge');
+    if(!badge) return;
+    badge.textContent = n > 99 ? '99+' : String(n);
+    badge.style.display = (n > 0 && activeSection !== 'comms') ? 'inline-block' : 'none';
+  }
+  function commsBadgeHtml(){
+    const n = commsUnreadCount();
+    return `<span class="ts-tab-badge" id="ts-comms-badge" style="display:${(n > 0 && activeSection !== 'comms') ? 'inline-block' : 'none'};">${n > 99 ? '99+' : n}</span>`;
+  }
+  function commsAdoptMessages(list){
+    if(!Array.isArray(list)) return false;
+    const before = commsMessages.map(m => m.id).join(',');
+    commsMessages = list;
+    const firstLoad = !commsLoaded;
+    commsLoaded = true;
+    // A device that has never opened Communications starts "caught up" — old
+    // messages don't all show up as unread the first time.
+    if(meId && commsSeenAt() === null) commsSetSeenAt(Math.max(commsLatestTs(), Date.now() - 1000));
+    return firstLoad || before !== list.map(m => m.id).join(',');
+  }
+  async function commsFetch(){
+    try{
+      const res = await fetchWithTimeout(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=get_comms&viewer=${encodeURIComponent(meId || '')}`);
+      const parsed = JSON.parse(await res.text());
+      if(!parsed || parsed.error || !Array.isArray(parsed.messages)) return false;
+      const wasEnabled = commsEnabled;
+      commsEnabled = parsed.enabled !== false;
+      if(!commsEnabled){
+        commsMessages = [];
+        commsLoaded = true;
+        return wasEnabled !== commsEnabled;
+      }
+      const changed = commsAdoptMessages(parsed.messages);
+      return changed || wasEnabled !== commsEnabled;
+    }catch(e){ return false; }
+  }
+  async function commsRequest(action, payload){
+    const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=${action}`;
+    const maxAttempts = 3;
+    let lastError = null;
+    for(let attempt = 1; attempt <= maxAttempts; attempt++){
+      try{
+        const res = await fetchWithTimeout(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const parsed = JSON.parse(await res.text());
+        if(parsed && parsed.error){
+          // A deliberate refusal (too long, topic removed, not allowed) would
+          // fail identically every time — don't retry it.
+          const err = new Error(parsed.error); err.final = true; throw err;
+        }
+        if(parsed && Array.isArray(parsed.messages)) commsAdoptMessages(parsed.messages);
+        return { ok: true, emailed: parsed ? parsed.emailed : undefined, emailNote: parsed ? parsed.emailNote : '', isTopic: !!(parsed && parsed.isTopic) };
+      }catch(e){
+        lastError = e;
+        if(e.final) break;
+        if(attempt < maxAttempts) await new Promise(r => setTimeout(r, 400 * attempt));
+      }
+    }
+    await showMessage("Didn't go through", (lastError && lastError.message) || 'Something went wrong reaching the server. Your text is still in the box — try again in a moment.');
+    return { ok: false };
+  }
+  // The next upcoming round (the app's usual "next play date": soonest play
+  // date that isn't closed, today included) and who is confirmed for it. Shown
+  // as a count on the "Next round's players" choice; the backend works it out
+  // again itself when the topic is posted.
+  function commsNextRoundInfo(){
+    const key = nextPlayDateKey();
+    if(!key) return { key: null, ids: [], label: '' };
+    const entries = (data.signups && data.signups[key]) || [];
+    const cap = capacityFor(key);
+    const ids = splitConfirmedStandby(entries, cap).confirmed.map(x => x.id);
+    return { key, ids, label: commsDateLabel(key) };
+  }
+  function commsDateLabel(key){
+    const d = new Date(key + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  const COMMS_AUDIENCE_TEXT = {
+    next: { icon: '⛳', short: "Next round's players" },
+    roster: { icon: '👥', short: 'All roster players' },
+    everyone: { icon: '📣', short: 'Everyone incl. pro shop' }
+  };
+  function commsAudienceChip(aud, audDate){
+    if(aud === 'roster' || !COMMS_AUDIENCE_TEXT[aud]) return '';
+    const text = (aud === 'next' && audDate) ? commsDateLabel(audDate) + ' round' : COMMS_AUDIENCE_TEXT[aud].short;
+    return `<span class="ts-comms-aud">${COMMS_AUDIENCE_TEXT[aud].icon} ${esc(text)}</span>`;
+  }
+  function commsNewId(){
+    return 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  function commsTime(ts){
+    try{ return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+    catch(e){ return ''; }
+  }
+  function commsTextHtml(s){
+    return esc(String(s || ''))
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\n/g, '<br>');
+  }
+  function commsThreads(){
+    const roots = commsMessages.filter(m => m.threadId === m.id);
+    const byThread = {};
+    commsMessages.forEach(m => { if(m.threadId !== m.id){ (byThread[m.threadId] = byThread[m.threadId] || []).push(m); } });
+    return roots.map(root => {
+      const replies = (byThread[root.id] || []).slice().sort((a, b) => a.createdAt - b.createdAt);
+      const last = replies.length ? replies[replies.length - 1] : root;
+      return { root, replies, lastTs: last.createdAt, last };
+    }).sort((a, b) => b.lastTs - a.lastTs);
+  }
+  function commsMessageHtml(m, isRoot, seenSnap, canDelete){
+    const isNew = m.authorId !== meId && seenSnap !== null && (m.createdAt || 0) > seenSnap;
+    return `
+      <div class="ts-comms-msg ${isRoot ? 'root' : ''}">
+        <div class="ts-comms-msg-meta">
+          <strong>${esc(m.authorName)}</strong> · ${esc(commsTime(m.createdAt))}
+          ${isNew ? '<span class="ts-comms-new">NEW</span>' : ''}
+          ${canDelete ? `<button type="button" class="ts-comms-del" data-comms-del="${esc(m.id)}">Delete</button>` : ''}
+        </div>
+        <div class="ts-comms-msg-body">${commsTextHtml(m.body)}</div>
+      </div>`;
+  }
+  function renderCommsPanel(el){
+    if(!el) return;
+    const me = meId ? data.roster.find(p => p.id === meId) : null;
+    if(!me){
+      el.innerHTML = `<div class="ts-card" style="padding:18px;"><h3 style="margin:0 0 8px; font-family:'Fraunces',serif; color:var(--fairway);">Messages</h3>
+        <p style="margin:0; font-size:14px;">Pick your name in the <strong>I'm —</strong> menu at the top of the page to read and post messages.</p></div>`;
+      return;
+    }
+    if(commsSnapshotSeen === null) commsSnapshotSeen = commsSeenAt();
+    const threads = commsThreads();
+    const seenSnap = commsSnapshotSeen;
+    const canEmail = !!me.email;
+    const nextRound = commsNextRoundInfo();
+    const nextCount = nextRound.ids.length;
+    if(commsDrafts.audience === 'next' && !nextCount) commsDrafts.audience = 'roster';
+    const emailOn = me.commsEmail !== false;
+    const threadHtml = threads.map(t => {
+      const open = commsExpanded.has(t.root.id);
+      const unreadInThread = seenSnap !== null && [t.root].concat(t.replies).some(m => m.authorId !== meId && (m.createdAt || 0) > seenSnap);
+      const canDeleteRoot = t.root.authorId === meId || isAdmin;
+      const preview = t.last.body.replace(/\s+/g, ' ').slice(0, 90);
+      return `
+        <div class="ts-card ts-comms-thread" data-comms-thread="${esc(t.root.id)}">
+          <button type="button" class="ts-comms-head" data-comms-toggle="${esc(t.root.id)}" aria-expanded="${open}">
+            <span class="ts-comms-title">${esc(t.root.title)} ${unreadInThread ? '<span class="ts-comms-new">NEW</span>' : ''} ${commsAudienceChip(t.root.audience, t.root.audienceDate)}</span>
+            <span class="ts-comms-sub">${esc(t.root.authorName)} · ${t.replies.length} repl${t.replies.length === 1 ? 'y' : 'ies'} · last activity ${esc(commsTime(t.lastTs))}</span>
+            ${open ? '' : `<span class="ts-comms-preview">${esc(t.last.authorName)}: ${esc(preview)}${t.last.body.length > 90 ? '…' : ''}</span>`}
+          </button>
+          ${open ? `
+            <div class="ts-comms-body">
+              ${commsMessageHtml(t.root, true, seenSnap, canDeleteRoot)}
+              ${t.replies.map(r => commsMessageHtml(r, false, seenSnap, r.authorId === meId || isAdmin)).join('')}
+              <div class="ts-comms-reply">
+                <textarea data-comms-reply-box="${esc(t.root.id)}" rows="2" maxlength="2000" placeholder="Write a reply…"></textarea>
+                <button type="button" class="ts-comms-btn" data-comms-reply="${esc(t.root.id)}">Reply</button>
+              </div>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+    el.innerHTML = `
+      <div class="ts-card" style="padding:16px 18px;">
+        <h3 style="margin:0 0 4px; font-family:'Fraunces',serif; color:var(--fairway);">Messages</h3>
+        <p style="margin:0 0 12px; font-size:13px; color:#6b6a5e;">Start a topic and choose who it goes to; the people it goes to can reply. New topics are also emailed to that group.</p>
+        <label class="ts-comms-aud-label" for="ts-comms-audience">Send to</label>
+        <select id="ts-comms-audience" class="ts-comms-input" style="margin-bottom:8px;">
+          <option value="next" ${nextCount ? '' : 'disabled'}>⛳ Next round's players${nextRound.key ? ' — ' + esc(nextRound.label) : ''} (${nextCount ? nextCount + ' confirmed' : 'nobody confirmed yet'})</option>
+          <option value="roster">👥 All ${data.roster.filter(p => !p.isGuest).length} roster players</option>
+        </select>
+        <input type="text" id="ts-comms-new-title" maxlength="120" placeholder="Topic title" class="ts-comms-input">
+        <textarea id="ts-comms-new-body" rows="3" maxlength="2000" placeholder="What would you like to say?" class="ts-comms-input" style="margin-top:8px;"></textarea>
+        ${commsNotice ? `<div class="ts-comms-notice ${commsNotice.ok ? 'ok' : 'warn'}">${esc(commsNotice.text)}</div>` : ''}
+        <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <button type="button" class="ts-comms-btn" id="ts-comms-post">Post topic</button>
+          ${canEmail
+            ? `<label style="font-size:12.5px; color:#6b6a5e; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="ts-comms-email-pref" ${emailOn ? 'checked' : ''}> Email me about new topics</label>`
+            : `<span style="font-size:12.5px; color:#6b6a5e;">No email address on file for you — ask an admin to add one if you want emails about new topics.</span>`}
+        </div>
+      </div>
+      ${commsLoaded ? (threadHtml || '<p style="font-size:14px; color:#6b6a5e; padding:6px 4px;">No topics yet — be the first to post.</p>') : '<p style="font-size:14px; color:#6b6a5e; padding:6px 4px;">Loading messages…</p>'}`;
+
+    // Restore anything typed before a redraw.
+    const titleEl = document.getElementById('ts-comms-new-title');
+    const bodyEl = document.getElementById('ts-comms-new-body');
+    titleEl.value = commsDrafts.newTitle;
+    const audEl = document.getElementById('ts-comms-audience');
+    audEl.value = commsDrafts.audience;
+    audEl.addEventListener('change', () => { commsDrafts.audience = audEl.value; });
+    bodyEl.value = commsDrafts.newBody;
+    titleEl.addEventListener('input', () => { commsDrafts.newTitle = titleEl.value; });
+    bodyEl.addEventListener('input', () => { commsDrafts.newBody = bodyEl.value; });
+    el.querySelectorAll('[data-comms-reply-box]').forEach(box => {
+      const tid = box.getAttribute('data-comms-reply-box');
+      box.value = commsDrafts.replies[tid] || '';
+      box.addEventListener('input', () => { commsDrafts.replies[tid] = box.value; });
+    });
+    el.querySelectorAll('[data-comms-toggle]').forEach(btn => {
+      btn.onclick = () => {
+        const tid = btn.getAttribute('data-comms-toggle');
+        if(commsExpanded.has(tid)) commsExpanded.delete(tid); else commsExpanded.add(tid);
+        renderCommsPanel(el);
+      };
+    });
+    document.getElementById('ts-comms-post').onclick = () => commsSubmitTopic(el);
+    el.querySelectorAll('[data-comms-reply]').forEach(btn => {
+      btn.onclick = () => commsSubmitReply(el, btn.getAttribute('data-comms-reply'));
+    });
+    el.querySelectorAll('[data-comms-del]').forEach(btn => {
+      btn.onclick = () => commsDelete(el, btn.getAttribute('data-comms-del'));
+    });
+    const pref = document.getElementById('ts-comms-email-pref');
+    if(pref){
+      pref.onchange = async () => {
+        if(pref.checked){ delete me.commsEmail; } else { me.commsEmail = false; }
+        await saveData();
+      };
+    }
+    // Everything currently on screen counts as read once the tab is showing.
+    if(commsLoaded && activeSection === 'comms'){
+      commsSetSeenAt(commsLatestTs());
+      commsUpdateBadge();
+    }
+  }
+  async function commsSubmitTopic(el){
+    if(commsPosting) return;
+    const title = commsDrafts.newTitle.trim();
+    const body = commsDrafts.newBody.trim();
+    if(!title){ await showMessage('Add a title', 'Give your topic a short title first.'); return; }
+    if(!body){ await showMessage('Add a message', 'Write something under the title first.'); return; }
+    commsPosting = true;
+    const btn = document.getElementById('ts-comms-post');
+    if(btn) btn.disabled = true;
+    const id = commsNewId();
+    const r = await commsRequest('post_comms', { message: { id, authorId: meId, title, body, audience: commsDrafts.audience } });
+    commsPosting = false;
+    if(r.ok){
+      commsDrafts.newTitle = ''; commsDrafts.newBody = '';
+      commsDrafts.audience = 'roster';
+      if(r.isTopic){
+        if(r.emailed > 0) commsNotice = { ok: true, text: 'Posted. Emailed ' + r.emailed + ' ' + (r.emailed === 1 ? 'person' : 'people') + '.' };
+        else commsNotice = { ok: false, text: 'Posted in the app, but no email was sent: ' + (r.emailNote || 'unknown reason') + '.' };
+      }
+      commsExpanded.add(id);
+    }
+    renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+  }
+  async function commsSubmitReply(el, threadId){
+    if(commsPosting) return;
+    const body = (commsDrafts.replies[threadId] || '').trim();
+    if(!body){ await showMessage('Add a message', 'Write your reply first.'); return; }
+    commsPosting = true;
+    const id = commsNewId();
+    const r = await commsRequest('post_comms', { message: { id, threadId, authorId: meId, body } });
+    commsPosting = false;
+    if(r.ok) delete commsDrafts.replies[threadId];
+    renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+  }
+  async function commsDelete(el, id){
+    const m = commsMessages.find(x => x.id === id);
+    if(!m) return;
+    const isRoot = m.threadId === m.id;
+    const ok = await askConfirm(isRoot ? 'Delete this topic?' : 'Delete this reply?',
+      isRoot ? 'The topic and all of its replies will be removed for everyone.' : 'This reply will be removed for everyone.',
+      'Delete', 'Keep');
+    if(!ok) return;
+    await commsRequest('delete_comms', { id, requesterId: meId });
+    renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+  }
+  // Background refresh: every 30s while Communications is open (so replies
+  // appear on their own), every ~90s otherwise (just to keep the unread badge
+  // honest). Never redraws while someone is typing in the panel.
+  async function commsTick(){
+    if(!meId || document.hidden) return;
+    commsTickCount++;
+    const viewing = activeSection === 'comms';
+    if(!viewing && commsTickCount % 3 !== 0) return;
+    const wasEnabled = commsEnabled;
+    const changed = await commsFetch();
+    if(!changed) return;
+    if(wasEnabled !== commsEnabled){
+      // An admin flipped the Messages switch: show or hide the tab. Wait for a
+      // moment when nobody is typing so a form is never wiped mid-sentence.
+      const ae = document.activeElement;
+      if(ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')){ commsEnabled = wasEnabled; return; }
+      render();
+      return;
+    }
+    if(viewing){
+      const panel = document.getElementById('ts-comms-panel');
+      const a = document.activeElement;
+      const typing = panel && a && panel.contains(a) && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA');
+      if(panel && !typing) renderCommsPanel(panel);
+    }
+    commsUpdateBadge();
+  }
+
+  let data = { roster: [], signups: {}, duty: {}, closures: {}, notices: {}, swapRequests: {}, confirmedTeeTimes: {}, teamsTeeTimesOverride: {}, teeTimeSchedule: {}, teeRatings: {}, teeOptions: [], teams: {}, rounds: {}, playingGroups: {}, holeHandicaps: {}, holeHandicapsRed: {"1":7,"2":17,"3":13,"4":3,"5":9,"6":1,"7":5,"8":15,"9":11,"10":8,"11":10,"12":16,"13":2,"14":4,"15":6,"16":14,"17":18,"18":12}, holePars: {}, adminPin: null, guestPin: '3672', playerPins: {}, activityLog: [], payments: [], moneyStatusStartDate: null, extraReminderEmails: ['stevekirchhoff52@gmail.com','rtleene@aol.com'], proShopEmails: ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net'] };
   // Set when the very first load couldn't reach the backend at all (network hiccup,
   // or the fetch timing out per FETCH_TIMEOUT_MS above) — distinct from a
   // successful load that happens to find an empty roster, so init() can show a
@@ -1302,7 +1759,7 @@
   let isGuestVerified = false;
   let expanded = {};
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
-  let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'admin'
+  let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'comms' | 'admin'
   let adminSubTab = 'roster'; // 'roster' | 'closures' | 'pastDuty' | 'activityLog' | 'data' | 'reminders' | 'handicaps'
   let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab — always the upcoming round unless reviewDateKey (below) pins it to a past one
   // Set by "Review prior rounds" — null means Scoring & Bets always follows
@@ -1379,8 +1836,8 @@
     if((handicapDraft.effectiveDate || '') !== (data.handicapEffectiveDate || '')) return true;
     for(const pid in handicapDraft.values){
       const player = data.roster.find(p => p.id === pid);
-      const currentVal = player && typeof player.handicapIndex === 'number' ? String(player.handicapIndex) : '';
-      if(handicapDraft.values[pid].trim() !== currentVal) return true;
+      const currentVal = player && typeof player.handicapIndex === 'number' ? fmtHI(player.handicapIndex) : '';
+      if(normHI(handicapDraft.values[pid]) !== currentVal) return true;
     }
     return false;
   }
@@ -1626,6 +2083,13 @@
     // hardcoded on the backend (Code.gs SIGNUP_REMINDER_EXTRA_EMAILS); from
     // then on it's just a normal saved value, editable from Admin > Reminders.
     if(!data.extraReminderEmails) data.extraReminderEmails = ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net','stevekirchhoff52@gmail.com','rtleene@aol.com'];
+    // Pro shop addresses have their own list now (Admin > Reminders > Pro shop).
+    // First load moves them out of "extra recipients" so nobody is listed twice.
+    if(!data.proShopEmails){
+      data.proShopEmails = ['rdelfs@theheritageclub.net','rsatterwhite@theheritageclub.net'];
+      const psLow = data.proShopEmails.map(a => a.toLowerCase());
+      data.extraReminderEmails = data.extraReminderEmails.filter(a => psLow.indexOf(String(a).toLowerCase()) === -1);
+    }
     if(typeof data._lastModified !== 'number') data._lastModified = 0;
     lastKnownModified = data._lastModified;
     const removedGhosts = normalizeSignups();
@@ -2313,7 +2777,16 @@
   // snapshot still writes each tee's Course Handicap straight from the imported
   // table, since that's presumed authoritative over anything computed here.
   const COURSE_PAR = 72;
-  function computedCourseHandicap(indexVal, tee){
+  // Handicap Index is always shown with exactly one decimal (12 -> "12.0").
+function fmtHI(v){ return (typeof v === 'number' && !isNaN(v)) ? v.toFixed(1) : '—'; }
+// Compare/normalize a typed Handicap Index string so "12" and "12.0" count as the same value.
+function normHI(str){
+  const t = String(str === undefined || str === null ? '' : str).trim();
+  if(t === '') return '';
+  const n = parseFloat(t);
+  return isNaN(n) ? t : n.toFixed(1);
+}
+function computedCourseHandicap(indexVal, tee){
     if(typeof indexVal !== 'number') return null;
     const r = data.teeRatings[tee];
     if(!r || typeof r.rating !== 'number' || typeof r.slope !== 'number') return null;
@@ -3658,7 +4131,7 @@
       const targetKey = fmtDateKey(target);
       let dutyText;
       if(data.closures[targetKey]){
-        dutyText = `Course closed ${FULL_MONTHS[target.getMonth()]} ${target.getDate()} — no tee times needed`;
+        dutyText = `Course closed ${MON_NAMES[target.getMonth()]} ${target.getDate()} — no one has booking duty on ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
       } else {
         const targetDuty = dutyForKey(targetKey);
         const targetCount = (data.signups[targetKey] || []).length;
@@ -4002,6 +4475,7 @@
   }
 
   function render(){
+    if(activeSection === 'comms' && commsEnabled !== true) activeSection = 'schedule';
     if(activeSection === 'admin' && !isAdmin) activeSection = 'schedule';
     if(data.roster.length === 0 && activeSection !== 'roster'){
       root.innerHTML = `
@@ -4107,6 +4581,9 @@
           <button class="ts-tab ${activeSection==='scoring'?'active':''}" data-tab="scoring">
             <span class="ts-tab-icon">🏆</span><span class="ts-tab-label">Scoring &amp; Bets</span>
           </button>
+          ${commsEnabled === true ? `<button class="ts-tab ${activeSection==='comms'?'active':''}" data-tab="comms">
+            <span class="ts-tab-icon">💬</span><span class="ts-tab-label">Messages</span>${commsBadgeHtml()}
+          </button>` : ''}
         </div>
 
         ${activeSection === 'admin' ? `
@@ -4124,6 +4601,7 @@
         ${activeSection === 'duty' ? `<div id="ts-duty-panel"></div>` : ''}
         ${activeSection === 'handicaps' ? `<div id="ts-handicaps-public-panel"></div>` : ''}
         ${activeSection === 'scoring' ? `<div id="ts-scoring-panel"></div>` : ''}
+        ${activeSection === 'comms' ? `<div id="ts-comms-panel"></div>` : ''}
         ${activeSection === 'schedule' ? `
           <div class="ts-section-title-row">
             <h2 class="ts-section-title">Upcoming Dates <span>next ${WEEKS_AHEAD} weeks</span></h2>
@@ -4181,6 +4659,11 @@
 
     if(activeSection === 'scoring'){
       renderScoringPanel(document.getElementById('ts-scoring-panel'));
+    }
+
+    if(activeSection === 'comms'){
+      renderCommsPanel(document.getElementById('ts-comms-panel'));
+      if(!commsLoaded) commsFetch().then(() => { const pn = document.getElementById('ts-comms-panel'); if(activeSection === 'comms' && pn) renderCommsPanel(pn); });
     }
 
     if(activeSection === 'admin'){
@@ -4263,7 +4746,7 @@
       const targetClosed = !!data.closures[targetKey];
 
       const dutyControl = targetClosed
-        ? `<span class="ts-duty-static">Course closed ${MON_NAMES[targetDate.getMonth()]} ${targetDate.getDate()} — no tee times needed</span>`
+        ? `<span class="ts-duty-static">Course closed ${MON_NAMES[targetDate.getMonth()]} ${targetDate.getDate()} — no one has booking duty ${key === fmtDateKey(new Date()) ? 'today' : 'on ' + MON_NAMES[d.getMonth()] + ' ' + d.getDate()}</span>`
         : `<span class="ts-duty-static">${targetDuty ? playerLabel(targetDuty) + ' has booking duty' : 'No one has booking duty yet'}</span>`;
 
       const generatedTeams = data.teams[key];
@@ -4577,11 +5060,28 @@
     const recipientRowsHtml = (data.extraReminderEmails || []).map(addr =>
       `<div class="ts-closure-row"><span class="ts-closure-date">${esc(addr)}</span><button data-remove-reminder-email="${esc(addr)}">Remove</button></div>`
     ).join('');
+    const proShopRowsHtml = (data.proShopEmails || []).map(addr =>
+      `<div class="ts-closure-row"><span class="ts-closure-date">${esc(addr)}</span><button data-remove-proshop-email="${esc(addr)}">Remove</button></div>`
+    ).join('');
     el.innerHTML = `
       <div class="ts-roster-panel">
         <div class="ts-import-row ts-ci-section" style="margin-top:0; padding-top:0; border-top:none;">
+          <span class="ts-import-row-label">Messages</span>
+          <p style="margin:0 0 10px;">Messages lets players post topics and reply, and emails new topics to the group. It is currently <strong>${commsEnabled === true ? 'ON' : (commsEnabled === false ? 'OFF' : 'checking…')}</strong>. When it is off the Messages tab is hidden for everyone and nothing is emailed; existing messages are kept and come back when you turn it on. Players' devices pick up a change within a minute or two.</p>
+          <button id="ts-messages-toggle" ${commsEnabled === null ? 'disabled' : ''}>${commsEnabled === true ? 'Turn Messages off' : 'Turn Messages on'}</button>
+        </div>
+        <div class="ts-import-row ts-ci-section">
+          <span class="ts-import-row-label">Pro shop</span>
+          <p style="margin:0 0 10px;">Pro shop staff. They get the nightly "playing tomorrow" email, and the "please cancel our last tee time" email when a drop-out leaves a spare tee time. Add, change or remove addresses here (to change one, remove it and add the new one).</p>
+          ${proShopRowsHtml || '<p class="ts-empty">No pro shop addresses yet. The cancel-a-tee-time email will not be sent until you add one.</p>'}
+          <div class="ts-add-row" style="margin-top:10px;">
+            <input type="email" placeholder="name@example.com" id="ts-new-proshop-email">
+            <button id="ts-add-proshop-email">Add</button>
+          </div>
+        </div>
+        <div class="ts-import-row ts-ci-section">
           <span class="ts-import-row-label">Extra recipients</span>
-          <p style="margin:0 0 10px;">Everyone on the roster with an email on file already gets the automatic "playing tomorrow" email every night before a play day. Add anyone else who should get it too — pro shop staff, etc.</p>
+          <p style="margin:0 0 10px;">Everyone on the roster with an email on file already gets the automatic "playing tomorrow" email every night before a play day. Add anyone else who should get it too (not pro shop staff, who are listed above).</p>
           ${recipientRowsHtml || '<p class="ts-empty">No extra recipients yet.</p>'}
           <div class="ts-add-row" style="margin-top:10px;">
             <input type="email" placeholder="name@example.com" id="ts-new-reminder-email">
@@ -4657,7 +5157,7 @@
 
     const playerRows = sortedRoster().map(p => {
       const draftVal = handicapDraft.values[p.id];
-      const inputVal = draftVal !== undefined ? draftVal : (typeof p.handicapIndex === 'number' ? p.handicapIndex : '');
+      const inputVal = draftVal !== undefined ? draftVal : (typeof p.handicapIndex === 'number' ? p.handicapIndex.toFixed(1) : '');
       const previewIndex = draftVal !== undefined ? (draftVal.trim() === '' ? null : parseFloat(draftVal)) : p.handicapIndex;
       const courseHcp = (typeof previewIndex === 'number' && !isNaN(previewIndex)) ? computedCourseHandicap(previewIndex, p.defaultTee) : null;
       return `
@@ -4754,7 +5254,7 @@
       return `
         <div class="ts-roster-row">
           <span style="flex:1; min-width:170px;">${playerLabel(p)}</span>
-          <span style="width:90px; font-family:'IBM Plex Mono',monospace; font-size:12px;">${typeof p.handicapIndex === 'number' ? p.handicapIndex : '—'}</span>
+          <span style="width:90px; font-family:'IBM Plex Mono',monospace; font-size:12px;">${fmtHI(p.handicapIndex)}</span>
           <span style="width:140px; font-size:13px;">${p.defaultTee ? esc(p.defaultTee) : '—'}</span>
           <span style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
         </div>`;
@@ -6281,11 +6781,73 @@
           await showMessage('Already on the list', `${val} is already getting the reminder.`);
           return;
         }
+        if((data.proShopEmails || []).some(e => e.toLowerCase() === val.toLowerCase())){
+          await showMessage('Already on the list', `${val} is already a pro shop address.`);
+          return;
+        }
         data.extraReminderEmails.push(val);
         await saveData();
         render();
       };
     }
+    const messagesToggleBtn = document.getElementById('ts-messages-toggle');
+    if(messagesToggleBtn){
+      messagesToggleBtn.onclick = async () => {
+        if(!isAdmin || commsEnabled === null) return;
+        const turnOn = commsEnabled !== true;
+        if(!turnOn){
+          const ok = await askConfirm('Turn Messages off?', 'The Messages tab will disappear for everyone and new topics will no longer be emailed. Existing messages are kept and return when you turn it back on.', 'Turn off', 'Cancel');
+          if(!ok) return;
+        }
+        messagesToggleBtn.disabled = true;
+        try{
+          const res = await fetchWithTimeout(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=set_messages_enabled`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ enabled: turnOn, requesterId: meId })
+          });
+          const parsed = JSON.parse(await res.text());
+          if(parsed && parsed.error) throw new Error(parsed.error);
+          commsEnabled = !!(parsed && parsed.enabled);
+          if(commsEnabled) await commsFetch();
+        }catch(e){
+          await showMessage("Didn't go through", (e && e.message) || 'Could not reach the server. Try again in a moment.');
+        }
+        render();
+      };
+    }
+    const addProShopBtn = document.getElementById('ts-add-proshop-email');
+    if(addProShopBtn){
+      addProShopBtn.onclick = async () => {
+        if(!isAdmin) return;
+        const input = document.getElementById('ts-new-proshop-email');
+        const val = (input && input.value || '').trim();
+        if(!val) return;
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)){
+          await showMessage('Not a valid email', 'Enter a full email address like name@example.com.');
+          return;
+        }
+        if(!data.proShopEmails) data.proShopEmails = [];
+        if(data.proShopEmails.some(e => e.toLowerCase() === val.toLowerCase())){
+          await showMessage('Already on the list', `${val} is already a pro shop address.`);
+          return;
+        }
+        data.proShopEmails.push(val);
+        // Keep an address in one list only.
+        data.extraReminderEmails = (data.extraReminderEmails || []).filter(e => e.toLowerCase() !== val.toLowerCase());
+        await saveData();
+        render();
+      };
+    }
+    document.querySelectorAll('[data-remove-proshop-email]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const addr = btn.getAttribute('data-remove-proshop-email');
+        data.proShopEmails = (data.proShopEmails || []).filter(e => e !== addr);
+        await saveData();
+        render();
+      };
+    });
     document.querySelectorAll('[data-remove-reminder-email]').forEach(btn => {
       btn.onclick = async () => {
         if(!isAdmin) return;
@@ -6710,8 +7272,8 @@
           const player = data.roster.find(p => p.id === pid);
           if(!player) continue;
           const raw = handicapDraft.values[pid].trim();
-          const currentVal = typeof player.handicapIndex === 'number' ? String(player.handicapIndex) : '';
-          if(raw === currentVal) continue;
+          const currentVal = typeof player.handicapIndex === 'number' ? fmtHI(player.handicapIndex) : '';
+          if(normHI(raw) === currentVal) continue;
           anyChanged = true;
           if(raw === ''){
             delete player.handicapIndex;
@@ -6911,8 +7473,10 @@
     document.querySelectorAll('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
         const tab = btn.getAttribute('data-tab');
+        if(tab !== 'comms'){ commsSnapshotSeen = null; commsNotice = null; }
         activeSection = tab;
         render();
+        if(tab === 'comms') commsFetch().then(changed => { const pn = document.getElementById('ts-comms-panel'); if(changed && activeSection === 'comms' && pn) renderCommsPanel(pn); });
       });
     });
 
@@ -7393,6 +7957,7 @@
           const afterConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
           const newlyPromoted = afterConfirmedIds.filter(id => !beforeConfirmedIds.includes(id));
           if(newlyPromoted.length) notifyPromoted(key, newlyPromoted);
+          maybeNotifyExtraTeeTime(key, list.length + 1, list.length, droppedPlayer);
           // A drop-out on the day of play itself is the one that actually
           // strands a foursome — tee times are already booked, so unlike an
           // advance drop-out (which just quietly opens the spot to standby),
@@ -7446,6 +8011,7 @@
         const beforeConfirmedIds = splitConfirmedStandby(data.signups[key] || [], capacity).confirmed.map(x => x.id);
         const removedPlayer = data.roster.find(p => p.id === pid);
         const wasConfirmed = beforeConfirmedIds.includes(pid);
+        const countBeforeRemove = (data.signups[key] || []).length;
         data.signups[key] = (data.signups[key] || []).filter(x => x.id !== pid);
         // Same team/"Not in Bet" cleanup as the self-service drop-out — otherwise
         // an admin-removed player lingers as a ghost in Swap players too.
@@ -7453,6 +8019,7 @@
         const afterConfirmedIds = splitConfirmedStandby(data.signups[key], capacity).confirmed.map(x => x.id);
         const newlyPromoted = afterConfirmedIds.filter(id => !beforeConfirmedIds.includes(id));
         if(newlyPromoted.length) notifyPromoted(key, newlyPromoted);
+        maybeNotifyExtraTeeTime(key, countBeforeRemove, data.signups[key].length, removedPlayer);
         // Same day-of-play group alert as the self-service drop-out above —
         // this admin-driven removal is the same "someone's out and the group
         // needs to know now" situation (e.g. a player calls in to the admin
@@ -7552,11 +8119,15 @@
     await reverifyIfNeeded();
     await autoIdentifyIfNeeded();
     render();
+    checkPromotionNotice();
 
     // Retry failed score saves as soon as the device thinks it's back online,
     // rather than waiting for the next heartbeat tick.
     window.addEventListener('online', () => { scoringHeartbeat(); });
     setInterval(scoringHeartbeat, 25000);
+    // Communications: load once now so the unread badge is right at startup, then keep it fresh.
+    commsFetch().then(() => { if(commsEnabled === true) render(); commsUpdateBadge(); });
+    setInterval(commsTick, 30000);
   })();
 })();
 </script>
