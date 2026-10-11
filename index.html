@@ -64,12 +64,15 @@
     color:var(--brass-light); margin:6px 0 6px;
     display:flex; align-items:center; gap:8px; flex-wrap:wrap;
   }
+  /* Tucked into the top-right corner of the header, faint until the admin needs it. */
   .ts-admin-pill{
-    font-family:'Inter',sans-serif; font-size:10.5px; letter-spacing:0; text-transform:none;
-    background:rgba(255,255,255,0.12); color:var(--ivory); border:1px solid rgba(255,255,255,0.25);
-    padding:2px 9px; border-radius:20px; cursor:pointer;
+    position:absolute; top:8px; right:10px; z-index:2;
+    font-family:'Inter',sans-serif; font-size:11px; letter-spacing:0; text-transform:none;
+    background:transparent; color:var(--ivory); border:none;
+    padding:3px 7px; border-radius:12px; cursor:pointer; opacity:.4;
   }
-  .ts-admin-pill.on{ background:var(--brass); border-color:var(--brass); color:var(--fairway-dark); font-weight:600; }
+  .ts-admin-pill:hover, .ts-admin-pill:focus-visible{ opacity:.9; }
+  .ts-admin-pill.on{ background:rgba(184,134,59,0.85); color:var(--fairway-dark); font-weight:600; opacity:.95; }
   .ts-title{
     font-family:'Fraunces',serif; font-weight:700; font-size:30px;
     margin:0; letter-spacing:-0.01em;
@@ -859,7 +862,7 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'October 5, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'October 11, 2026'; // update this each time a change is promoted to live
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -4731,10 +4734,10 @@ function computedCourseHandicap(indexVal, tee){
       ${testBannerHtml()}
         ${storageAvailable ? '' : warnBannerHtml()}
       <div class="ts-header">
+        <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
         <h1 class="ts-title">Heritage Gibson Group</h1>
         <p class="ts-eyebrow">
           ${data.roster.length} Player${data.roster.length===1?'':'s'}
-          <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill">${isAdmin ? '🔓 Admin unlocked' : '🔒 Admin'}</button>
         </p>
         <p class="ts-version">Updated ${VERSION_DATE}</p>
         <p class="ts-sub">Pick your dates below — and if you can only play 9, say so. Booking duty is set by the league admin; the club opens tee time booking ${BOOKING_WINDOW_DAYS} days out.</p>
