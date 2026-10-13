@@ -577,6 +577,18 @@
     display:inline-block; font-family:'Inter',sans-serif; color:var(--fairway); font-size:13px; font-weight:600; margin:0 0 6px;
   }
   .ts-import-row p{ font-size:12px; color:#8b8a7c; margin:6px 0 0; line-height:1.5; }
+  /* Admin > Reminders > Email wording */
+  .ts-ew-group{ border:1px solid var(--ivory-line); border-radius:8px; padding:12px 14px; margin-top:12px; background:#fff; }
+  .ts-ew-group h5{ margin:0 0 4px; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--fairway); }
+  .ts-ew-field{ display:block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .ts-ew-field input, .ts-ew-field textarea{
+    display:block; width:100%; box-sizing:border-box; margin-top:4px; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:400;
+    padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line); resize:vertical; color:var(--ink); line-height:1.45;
+  }
+  .ts-ew-words{ margin-top:10px; font-size:12px; color:#6b6a5e; line-height:1.6; }
+  .ts-ew-words code{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; background:var(--ivory); padding:1px 4px; border-radius:4px; color:var(--fairway); }
+  .ts-ew-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .ts-ew-actions button.ts-ew-save{ background:var(--fairway); color:var(--ivory); }
   /* "Swap players between teams" grid (see swapPlayersTableHtml) — a header
      row of column titles (Team 1 / Team 2 / .../ Not in Bet) instead of
      repeating those labels on every player row. */
@@ -5245,6 +5257,212 @@ function computedCourseHandicap(indexVal, tee){
     `;
   }
 
+  // Editable wording for the pro shop / nightly emails (Admin > Reminders >
+  // Email wording). Saved in data.emailTemplates; a part left blank, or set
+  // back to the original, uses these defaults. Must match
+  // EMAIL_TEMPLATE_DEFAULTS in Code.gs, which is what actually sends.
+  const EMAIL_TEMPLATE_DEFAULTS = {
+    cancelSubject: 'Please cancel {cancel} for {date} (Gibson Group)',
+    cancelBody: 'We only have {players} for {when} and therefore only need {needed}. Please cancel {cancel}. Thanks.\n\n' +
+      'Details: {name} dropped out of the Gibson Group round on {date}. That leaves {players}, so we only need {needed} instead of the {booked} we booked.\n\n' +
+      'Gibson Group Admin: Update the app to reflect only {confirmed} for {date}.',
+    nightlySubject: 'Reminder: golf tomorrow, {date}',
+    nightlyTeamsIntro: 'We have {teeTimes} and {golfers} signed up to play tomorrow, {date}. Here are the {suggested} teams:',
+    nightlyTeamsClosing: 'One person in each team should enter scores on the app so the bet can be tracked.\n\n' +
+      'Please update the website ({link}) and email or text the group if your plans change and you either need to drop out or would like to join.',
+    nightlyGroupsIntro: 'We have {teeTimes} and {golfers} signed up to play tomorrow, {date}. We will be playing in groups that differ from the teams as follows:',
+    nightlyGroupsClosing: 'One person in each group should enter scores on the app so the bet can be tracked.\n\n' +
+      'Please update the app and email or text the group if your plans change and you either need to drop out or would like to join.\n\n' +
+      'The app web address is {link}'
+  };
+  const EMAIL_WORDING_GROUPS = [
+    {
+      id: 'cancel',
+      title: '"Please cancel a tee time" email',
+      note: 'Sent to the pro shop when a drop-out leaves a spare tee time (remaining players and extra recipients are copied).',
+      fields: [
+        { key: 'cancelSubject', label: 'Subject' },
+        { key: 'cancelBody', label: 'Message', rows: 9 }
+      ],
+      words: [
+        ['{players}', 'players left, e.g. "8 players"'],
+        ['{when}', '"tomorrow", "today", or the date'],
+        ['{date}', 'the round date, e.g. "Wednesday, Oct 15"'],
+        ['{needed}', 'tee times still needed, e.g. "2 tee times"'],
+        ['{booked}', 'how many were booked, e.g. "3"'],
+        ['{confirmed}', 'e.g. "2 confirmed tee times"'],
+        ['{cancel}', '"our last tee time" or "our last 2 tee times"'],
+        ['{name}', 'the player who dropped out']
+      ]
+    },
+    {
+      id: 'nightly',
+      title: 'Nightly "playing tomorrow" email',
+      note: 'Goes to the whole roster, the pro shop and the extra recipients. The team (or group) tables are added automatically between the opening and the closing.',
+      fields: [
+        { key: 'nightlySubject', label: 'Subject' },
+        { key: 'nightlyTeamsIntro', label: 'Opening, on a "Play as Teams" day', rows: 3 },
+        { key: 'nightlyTeamsClosing', label: 'Closing, on a "Play as Teams" day', rows: 5 },
+        { key: 'nightlyGroupsIntro', label: 'Opening, on a "Play as Groups" day', rows: 3 },
+        { key: 'nightlyGroupsClosing', label: 'Closing, on a "Play as Groups" day', rows: 6 }
+      ],
+      words: [
+        ['{date}', 'tomorrow\'s date, e.g. "Wednesday, October 15"'],
+        ['{teeTimes}', 'e.g. "3 tee times"'],
+        ['{golfers}', 'e.g. "9 golfers"'],
+        ['{suggested}', 'the word "suggested" until the teams are final, otherwise nothing'],
+        ['{link}', 'the app\'s web address, as a clickable link']
+      ]
+    }
+  ];
+
+  function emailTemplateText(key){
+    const saved = data.emailTemplates && data.emailTemplates[key];
+    return (typeof saved === 'string' && saved.trim()) ? saved : EMAIL_TEMPLATE_DEFAULTS[key];
+  }
+  function fillEmailTemplate(text, values){
+    return String(text).replace(/\{(\w+)\}/g, (m, k) => Object.prototype.hasOwnProperty.call(values, k) ? values[k] : m);
+  }
+  // Same paragraph rules as emailTextToHtml_ in Code.gs: a blank line starts a
+  // new paragraph, a single line break is kept.
+  function emailTextToHtml(text, values, htmlValues){
+    const filled = {};
+    Object.keys(values).forEach(k => { filled[k] = esc(values[k]); });
+    Object.keys(htmlValues || {}).forEach(k => { filled[k] = htmlValues[k]; });
+    return String(text).replace(/\r\n/g, '\n').split(/\n\s*\n/).map(para => {
+      para = para.trim();
+      if(!para) return '';
+      return `<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt;">${fillEmailTemplate(esc(para), filled).replace(/\n/g, '<br>')}</p>`;
+    }).join('');
+  }
+  function emailWordingFromForm(group){
+    const out = {};
+    group.fields.forEach(f => {
+      const el = document.getElementById('ts-ew-' + f.key);
+      out[f.key] = el ? el.value : emailTemplateText(f.key);
+    });
+    return out;
+  }
+  function emailWordingSectionHtml(){
+    return EMAIL_WORDING_GROUPS.map(g => `
+      <div class="ts-ew-group">
+        <h5>${esc(g.title)}</h5>
+        <p style="margin:0;">${esc(g.note)}</p>
+        ${g.fields.map(f => `
+          <label class="ts-ew-field">${esc(f.label)}
+            ${f.rows
+              ? `<textarea id="ts-ew-${f.key}" rows="${f.rows}">${esc(emailTemplateText(f.key))}</textarea>`
+              : `<input type="text" id="ts-ew-${f.key}" value="${esc(emailTemplateText(f.key)).replace(/"/g, '&quot;')}">`}
+          </label>`).join('')}
+        <div class="ts-ew-words">Filled in automatically: ${g.words.map(w => `<code>${esc(w[0])}</code> ${esc(w[1])}`).join(' · ')}</div>
+        <div class="ts-ew-actions">
+          <button data-ew-preview="${g.id}">Preview</button>
+          <button class="ts-ew-save" data-ew-save="${g.id}">Save</button>
+          <button data-ew-reset="${g.id}">Put back original wording</button>
+        </div>
+      </div>`).join('');
+  }
+  // Sample tables for the nightly preview, laid out like the real email's.
+  function emailPreviewSampleTable(label, names, withTeam){
+    const th = 'style="border:1px solid #999;padding:3px 6px;background:#eee;text-align:left;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
+    const td = 'style="border:1px solid #999;padding:3px 6px;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
+    const rows = names.map((n, i) => `<tr><td ${td}>${esc(n)}</td><td ${td}>White</td><td ${td}>${8 + i * 4}</td><td ${td}>${i * 4}</td>${withTeam ? `<td ${td}>${(i % 2) + 1}</td>` : ''}</tr>`).join('');
+    return `<table style="border-collapse:collapse;margin:8px 0;"><tr><th ${th}>${esc(label)}</th><th ${th}>Tees</th><th ${th}>Course Handicap</th><th ${th}>Strokes Off</th>${withTeam ? `<th ${th}>Team</th>` : ''}</tr>${rows}</table>`;
+  }
+  function buildEmailWordingPreview(group, wording){
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    const known = {};
+    group.words.forEach(w => { known[w[0].slice(1, -1)] = true; });
+    const unknown = [];
+    group.fields.forEach(f => {
+      (String(wording[f.key]).match(/\{(\w+)\}/g) || []).forEach(m => {
+        if(!known[m.slice(1, -1)] && unknown.indexOf(m) === -1) unknown.push(m);
+      });
+    });
+    const warning = unknown.length
+      ? `<p style="margin:0 0 10px; color:#B3261E;"><b>Check these:</b> ${unknown.map(esc).join(', ')} ${unknown.length === 1 ? 'is not a word the app fills in, so it' : 'are not words the app fills in, so they'} will appear in the email exactly as typed.</p>`
+      : '';
+    const subjectOf = (text, values) => fillEmailTemplate(text, values).replace(/\s+/g, ' ').trim();
+    if(group.id === 'cancel'){
+      const sample = data.roster.find(p => !p.isGuest && p.name);
+      const values = {
+        players: '8 players', when: 'tomorrow',
+        date: tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }),
+        needed: '2 tee times', booked: '3', confirmed: '2 confirmed tee times',
+        cancel: 'our last tee time', name: sample ? sample.name : 'A player'
+      };
+      return {
+        title: 'Preview: "Please cancel a tee time" email',
+        html: `${warning}<p style="margin:0 0 4px;">Example: 9 players on 3 tee times, one drops out.</p>
+          <p style="margin:0 0 10px;"><b>Subject:</b> ${esc(subjectOf(wording.cancelSubject, values))}</p>
+          <div class="ts-preview-scroll"><div class="ts-preview-body" style="padding:12px 14px; white-space:pre-wrap;">${esc(fillEmailTemplate(wording.cancelBody, values))}</div></div>`
+      };
+    }
+    const siteUrl = window.location.href.split('#')[0].split('?')[0];
+    const values = {
+      date: tomorrow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }),
+      teeTimes: '2 tee times', golfers: '6 golfers', suggested: 'suggested'
+    };
+    const htmlValues = { link: `<a href="${esc(siteUrl)}">${esc(siteUrl)}</a>` };
+    const names = data.roster.filter(p => !p.isGuest && p.name).slice(0, 6).map(p => p.name);
+    while(names.length < 6) names.push('Player ' + (names.length + 1));
+    const teamsBody = emailTextToHtml(wording.nightlyTeamsIntro, values, htmlValues) +
+      emailPreviewSampleTable('Team 1', names.slice(0, 3), false) + emailPreviewSampleTable('Team 2', names.slice(3), false) +
+      emailTextToHtml(wording.nightlyTeamsClosing, values, htmlValues);
+    const groupValues = Object.assign({}, values, { teeTimes: '3 tee times', suggested: '' });
+    const groupsBody = emailTextToHtml(wording.nightlyGroupsIntro, groupValues, htmlValues) +
+      emailPreviewSampleTable('Group 1', names.slice(0, 2), true) + emailPreviewSampleTable('Group 2', names.slice(2, 4), true) +
+      emailPreviewSampleTable('Group 3', names.slice(4), true) +
+      emailTextToHtml(wording.nightlyGroupsClosing, groupValues, htmlValues);
+    return {
+      title: 'Preview: nightly "playing tomorrow" email',
+      html: `${warning}<p style="margin:0 0 10px;"><b>Subject:</b> ${esc(subjectOf(wording.nightlySubject, values))}</p>
+        <p style="margin:0 0 4px;">Example names and numbers; the real tables come from tomorrow's sign-ups.</p>
+        <div class="ts-preview-scroll">
+          <div class="ts-preview-email"><div class="ts-preview-meta">On a "Play as Teams" day</div><div class="ts-preview-body">${teamsBody}</div></div>
+          <div class="ts-preview-email"><div class="ts-preview-meta">On a "Play as Groups" day</div><div class="ts-preview-body">${groupsBody}</div></div>
+        </div>`
+    };
+  }
+  // Resolves true if the admin chose "Save" from the preview.
+  function showEmailWordingPreviewModal(preview){
+    return new Promise(resolve => {
+      const modalRoot = document.getElementById('ts-modal-root');
+      modalRoot.innerHTML = `
+        <div class="ts-modal-overlay" id="ts-modal-overlay">
+          <div class="ts-modal-box ts-modal-box-wide ts-modal-box-tall">
+            <h4>${esc(preview.title)}</h4>
+            ${preview.html}
+            <div class="ts-modal-actions">
+              <button class="ts-modal-cancel" id="ts-modal-cancel">Keep editing</button>
+              <button class="ts-modal-ok" id="ts-modal-ok">Save this wording</button>
+            </div>
+          </div>
+        </div>`;
+      const cleanup = (val) => { modalRoot.innerHTML = ''; resolve(val); };
+      document.getElementById('ts-modal-ok').onclick = () => cleanup(true);
+      document.getElementById('ts-modal-cancel').onclick = () => cleanup(false);
+      document.getElementById('ts-modal-overlay').addEventListener('click', (e) => {
+        if(e.target.id === 'ts-modal-overlay') cleanup(false);
+      });
+    });
+  }
+  async function saveEmailWording(group, wording){
+    if(!isAdmin) return;
+    const templates = Object.assign({}, data.emailTemplates || {});
+    group.fields.forEach(f => {
+      const v = String(wording[f.key] || '').replace(/\r\n/g, '\n');
+      // Blank or unchanged from the original: store nothing, so the original is used.
+      if(!v.trim() || v.trim() === EMAIL_TEMPLATE_DEFAULTS[f.key].trim()) delete templates[f.key];
+      else templates[f.key] = v;
+    });
+    data.emailTemplates = templates;
+    const ok = await saveData();
+    if(!ok) return;
+    render();
+    await showMessage('Wording saved', 'The next ' + group.title + ' will use this wording.');
+  }
+
   function renderRemindersPanel(el){
     if(!isAdmin){
       el.innerHTML = `
@@ -5292,6 +5510,11 @@ function computedCourseHandicap(indexVal, tee){
             <input type="email" placeholder="name@example.com" id="ts-new-reminder-email">
             <button id="ts-add-reminder-email">Add</button>
           </div>
+        </div>
+        <div class="ts-import-row ts-ci-section">
+          <span class="ts-import-row-label">Email wording</span>
+          <p style="margin:0;">Change what these emails say. Words in {curly braces} are filled in automatically when the email goes out, so leave them in where you want that detail. Leave a blank line between paragraphs. Use Preview to see how it will look, then Save. Nothing changes until you save.</p>
+          ${emailWordingSectionHtml()}
         </div>
         <div class="ts-import-row">
           <button id="ts-prepare-emails-btn">Prepare email reminders</button>
@@ -6970,6 +7193,33 @@ function computedCourseHandicap(indexVal, tee){
         await prepareWeeklySummary();
       };
     }
+    document.querySelectorAll('[data-ew-preview]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const group = EMAIL_WORDING_GROUPS.find(g => g.id === btn.getAttribute('data-ew-preview'));
+        const wording = emailWordingFromForm(group);
+        const save = await showEmailWordingPreviewModal(buildEmailWordingPreview(group, wording));
+        if(save) await saveEmailWording(group, wording);
+      };
+    });
+    document.querySelectorAll('[data-ew-save]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const group = EMAIL_WORDING_GROUPS.find(g => g.id === btn.getAttribute('data-ew-save'));
+        await saveEmailWording(group, emailWordingFromForm(group));
+      };
+    });
+    document.querySelectorAll('[data-ew-reset]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        const group = EMAIL_WORDING_GROUPS.find(g => g.id === btn.getAttribute('data-ew-reset'));
+        group.fields.forEach(f => {
+          const el = document.getElementById('ts-ew-' + f.key);
+          if(el) el.value = EMAIL_TEMPLATE_DEFAULTS[f.key];
+        });
+        await showMessage('Original wording is back in the boxes', 'Click Save to keep it, or Preview to check it first.');
+      };
+    });
     const addReminderEmailBtn = document.getElementById('ts-add-reminder-email');
     if(addReminderEmailBtn){
       addReminderEmailBtn.onclick = async () => {
