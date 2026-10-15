@@ -72,6 +72,19 @@
     padding:3px 7px; border-radius:12px; cursor:pointer; opacity:.4;
   }
   .ts-admin-pill:hover, .ts-admin-pill:focus-visible{ opacity:.9; }
+  /* Signed-in bar, top right of the header: who you are, Change PIN, Sign out,
+     then the admin lock. Shown when players sign in with email + PIN. */
+  .ts-topbar{
+    display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap;
+    gap:6px 18px; margin:-18px -12px 14px 0; font-size:12.5px; color:#CFE0CC;
+  }
+  .ts-topbar strong{ color:var(--ivory); font-weight:600; }
+  .ts-topbar-link{
+    font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ivory); background:none; border:none;
+    padding:0; text-decoration:underline; cursor:pointer; opacity:.85;
+  }
+  .ts-topbar-link:hover, .ts-topbar-link:focus-visible{ opacity:1; }
+  .ts-topbar .ts-admin-pill{ position:static; }
   .ts-admin-pill.on{ background:rgba(184,134,59,0.85); color:var(--fairway-dark); font-weight:600; opacity:.95; }
   .ts-title{
     font-family:'Fraunces',serif; font-weight:700; font-size:30px;
@@ -425,6 +438,15 @@
   @media print{
     .ts-scorecard-table th:first-child, .ts-scorecard-table td:first-child{ position:static; box-shadow:none; }
   }
+  /* Live Scoring's expanded scorecards: tighter cells so all 18 holes fit
+     on screen, and each played hole tinted by score against par. */
+  .ts-live-scorecard th, .ts-live-scorecard td{ padding:4px 1px; }
+  .ts-live-scorecard td.ts-score-name, .ts-live-scorecard th:first-child{ padding-right:6px; line-height:1.25; }
+  .ts-live-scorecard .ts-score-display{ width:24px; padding:3px 1px; }
+  .ts-live-scorecard td.ts-sc-birdie{ background:#CFE8C9; }
+  .ts-live-scorecard td.ts-sc-par{ background:#FBF3E4; }
+  .ts-live-scorecard td.ts-sc-bogey{ background:#F8D7DC; }
+  .ts-live-scorecard td.ts-sc-double{ background:#E89AA8; }
   .ts-scorecard-print-wrap{ margin-top:20px; padding-top:14px; border-top:1px dashed var(--ivory-line); }
   .ts-scorecard-block{ margin-top:16px; }
   @media print{
@@ -735,6 +757,22 @@
   }
   .ts-loading{ text-align:center; padding:60px 20px; color:#8b8a7c; font-family:'IBM Plex Mono',monospace; font-size:13px; }
 
+  .ts-busy{
+    position:fixed; top:12px; left:50%; transform:translate(-50%, -8px); z-index:900;
+    display:flex; align-items:center; gap:8px; pointer-events:none;
+    background:#fff; color:var(--ink); border:1.5px solid var(--fairway); border-radius:999px;
+    padding:8px 16px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    box-shadow:0 6px 18px rgba(0,0,0,0.25); opacity:0; transition:opacity .15s ease, transform .15s ease;
+  }
+  .ts-busy.show{ opacity:1; transform:translate(-50%, 0); }
+  .ts-busy-spinner{
+    width:13px; height:13px; border-radius:50%; border:2px solid var(--ivory-line);
+    border-top-color:var(--fairway); animation:ts-spin .7s linear infinite;
+  }
+  @keyframes ts-spin{ to{ transform:rotate(360deg); } }
+  body.ts-is-busy, body.ts-is-busy button{ cursor:progress; }
+  @media print{ .ts-busy{ display:none !important; } }
+
   .ts-modal-overlay{
     position:fixed; inset:0; background:rgba(18,46,34,0.55); display:flex; align-items:center; justify-content:center;
     padding:20px; z-index:1000;
@@ -801,7 +839,7 @@
   @media print{
     body{ background:#fff; }
     .ts-warn-banner, .ts-test-banner, #ts-modal-root, .ts-header::after,
-    .ts-whoami, .ts-pin-link, .ts-reminders, .ts-tabbar, .ts-footer-note,
+    .ts-whoami, .ts-pin-link, .ts-topbar, .ts-reminders, .ts-tabbar, .ts-footer-note,
     .ts-print-btn, .ts-toggle-wrap, .ts-holes-group, .ts-admin-add, .chip-remove,
     .ts-duty-sort, #ts-duty-filter, #ts-schedule-filter, .ts-swap-btn, .ts-swap-pending,
     .ts-admin-pill, .ts-add-row, .ts-import-row, #ts-new-name, #ts-add-player, .ts-player-action-select,
@@ -910,11 +948,48 @@
   async function fetchWithTimeout(url, options){
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    // Every save goes out as a POST, so this one spot puts the "Saving…"
+    // indicator on all of them.
+    const endBusy = (options && options.method === 'POST') ? beginBusy('Saving…') : null;
     try{
       return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
     } finally {
       clearTimeout(timer);
+      if(endBusy) endBusy();
     }
+  }
+
+  // "Saving…" indicator: a small pill fixed at the top of the screen with a
+  // spinner, shown while anything is being saved or sent so the user can see
+  // it's still working. Counted, so overlapping saves keep it up until the
+  // last one finishes. Lives on <body>, outside the re-rendered app, and sits
+  // under the dialog overlay so a question asked mid-save covers it.
+  let busyCount = 0;
+  function beginBusy(label){
+    busyCount++;
+    let el = document.getElementById('ts-busy');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'ts-busy';
+      el.className = 'ts-busy';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.innerHTML = '<span class="ts-busy-spinner"></span><span class="ts-busy-label"></span>';
+      document.body.appendChild(el);
+    }
+    el.querySelector('.ts-busy-label').textContent = label || 'Saving…';
+    el.classList.add('show');
+    document.body.classList.add('ts-is-busy');
+    let ended = false;
+    return () => {
+      if(ended) return;
+      ended = true;
+      busyCount = Math.max(0, busyCount - 1);
+      if(busyCount === 0){
+        el.classList.remove('show');
+        document.body.classList.remove('ts-is-busy');
+      }
+    };
   }
 
   async function fetchSharedData(){
@@ -1056,12 +1131,17 @@
   // would go out. Never touches data.lastHandicapEmailSentAt.
   async function fetchHandicapEmailPreview(){
     const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=preview_handicap_email`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({})
-    });
-    return JSON.parse(await res.text());
+    const endBusy = beginBusy('Loading email preview…');
+    try{
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({})
+      });
+      return JSON.parse(await res.text());
+    } finally {
+      endBusy();
+    }
   }
 
   // Shows the previewed subject/body (rendered, not escaped — it's our own
@@ -1082,7 +1162,7 @@
         <div class="ts-modal-overlay" id="ts-modal-overlay">
           <div class="ts-modal-box ts-modal-box-wide ts-modal-box-tall">
             <h4>${allowSend ? 'Send handicap update email?' : 'Handicap update email preview'}</h4>
-            <p style="margin:0 0 4px;">To: whole roster${typeof preview.recipientCount === 'number' ? ` (${preview.recipientCount} email${preview.recipientCount===1?'':'s'}, BCC'd)` : ''}</p>
+            <p style="margin:0 0 4px;">To: whole roster${typeof preview.recipientCount === 'number' ? ` (${preview.recipientCount} email${preview.recipientCount===1?'':'s'}, all visible in the To line)` : ''}</p>
             <p style="margin:0 0 10px;"><b>Subject:</b> ${esc(preview.subject || '')}</p>
             ${pdfLinkHtml}
             <div class="ts-preview-scroll"><div class="ts-preview-body" style="padding:12px 14px;">${preview.html || ''}</div></div>
@@ -1101,52 +1181,45 @@
     });
   }
 
-  // Look-only version, for the standalone "Preview handicap email" button —
-  // available any time (not just right after a save), since the twice-monthly
-  // automatic send otherwise has no way to check its content ahead of time.
-  async function previewHandicapEmailStandalone(){
-    let preview;
-    try{ preview = await fetchHandicapEmailPreview(); }
-    catch(e){ preview = null; }
-    if(!preview || preview.error){
-      await showMessage("Couldn't load preview", (preview && preview.error) || 'Something went wrong reaching the server — try again in a moment.');
-      return;
-    }
-    await showHandicapEmailPreviewModal(preview, { allowSend: false });
-  }
-
-  // Offered right after "Save updated handicaps" actually changes something —
-  // shows the same preview as above, but "Send now" actually sends it (the
-  // backend is the only side that can send mail). The backend enforces
-  // "don't send unless there's been an update" on its own via
-  // sendHandicapUpdateEmailIfNeeded_, so declining here just leaves it for
-  // the twice-monthly automatic email instead.
+  // Shows the preview with "Send now" / "Not yet". Offered right after "Save
+  // updated handicaps" changes something, and also behind the "Preview / send
+  // handicap email" button, so an admin who picked "Not yet" can send it any
+  // time later. An admin clicking "Send now" always sends, even if it already
+  // went out for this update; only the automatic 1st/15th send skips repeats.
   async function maybeOfferHandicapUpdateEmail(){
     if(!isAdmin) return;
     let preview;
     try{ preview = await fetchHandicapEmailPreview(); }
     catch(e){ preview = null; }
     if(!preview || preview.error){
-      await showMessage("Couldn't load preview", (preview && preview.error) || "Something went wrong reaching the server. It'll still go out automatically on the 1st or 15th, or try Preview handicap email again later.");
+      await showMessage("Couldn't load preview", (preview && preview.error) || "Something went wrong reaching the server. It'll still go out automatically on the 1st or 15th, or try the Preview / send handicap email button again later.");
       return;
     }
     const send = await showHandicapEmailPreviewModal(preview, { allowSend: true });
     if(!send) return;
+    let parsed = null, failed = false;
+    const endBusy = beginBusy('Sending email…');
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=send_handicap_email`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({})
+        body: JSON.stringify({ force: true })
       });
-      const parsed = JSON.parse(await res.text());
-      if(parsed && parsed.error){
-        await showMessage("Couldn't send", parsed.error);
-      } else if(parsed && parsed.sent === false){
-        await showMessage('Not sent', parsed.reason || "The email wasn't sent.");
-      }
+      parsed = JSON.parse(await res.text());
     }catch(e){
-      await showMessage("Couldn't send", "Something went wrong reaching the server. It'll still go out automatically on the 1st or 15th, or try again from here.");
+      failed = true;
+    }finally{
+      endBusy();
+    }
+    if(failed){
+      await showMessage("Couldn't send", "Something went wrong reaching the server. Try again with the Preview / send handicap email button.");
+    } else if(parsed && parsed.error){
+      await showMessage("Couldn't send", parsed.error);
+    } else if(parsed && parsed.sent === false){
+      await showMessage('Not sent', parsed.reason || "The email wasn't sent.");
+    } else {
+      await showMessage('Email sent', `The handicap update went to ${typeof preview.recipientCount === 'number' ? preview.recipientCount + ' player' + (preview.recipientCount===1?'':'s') : 'the whole roster'}.`);
     }
   }
 
@@ -2188,6 +2261,16 @@
   // existing caller that doesn't check the return value keeps working exactly
   // as before.
   async function saveData(){
+    // Covers the whole save, including the up-to-date check and any retries,
+    // not just the final upload.
+    const endBusy = beginBusy('Saving…');
+    try{
+      return await saveDataWithRetries(endBusy);
+    } finally {
+      endBusy();
+    }
+  }
+  async function saveDataWithRetries(endBusy){
     const ok = await checkNotStale();
     if(!ok) return false;
     data._lastModified = Date.now();
@@ -2212,6 +2295,7 @@
     // repeatedly-failed save could leave the admin thinking it went through when
     // it never reached the server at all. Surface it instead.
     console.error('Could not save', lastError);
+    endBusy();
     await showMessage(
       "Save didn't go through",
       (lastError && lastError.message) || "Something went wrong saving — what you see here may not have reached the server. Try again in a moment."
@@ -4746,7 +4830,14 @@ function computedCourseHandicap(indexVal, tee){
       ${testBannerHtml()}
         ${storageAvailable ? '' : warnBannerHtml()}
       <div class="ts-header">
-        <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
+        ${loginRequired ? `
+        <div class="ts-topbar">
+          <span>Signed in as <strong>${me ? esc(me.name) : (isAdmin ? 'League admin' : 'Guest')}</strong></span>
+          ${me ? `<button class="ts-topbar-link" id="ts-set-pin">${meHasPin ? 'Change PIN' : 'Set PIN'}</button>` : ''}
+          <button class="ts-topbar-link" id="ts-sign-out">Sign out</button>
+          <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
+        </div>` : `
+        <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>`}
         <h1 class="ts-title">Heritage Gibson Group</h1>
         <p class="ts-eyebrow">
           ${data.roster.length} Player${data.roster.length===1?'':'s'}
@@ -4755,7 +4846,7 @@ function computedCourseHandicap(indexVal, tee){
         <p class="ts-sub">Pick your dates below — and if you can only play 9, say so. Booking duty is set by the league admin; the club opens tee time booking ${BOOKING_WINDOW_DAYS} days out.</p>
       </div>
       <div class="ts-body">
-        ${loginRequired ? `<div class="ts-whoami"><label>Signed in as</label> <strong>${me ? esc(me.name) : (isAdmin ? 'League admin' : 'Guest')}</strong> <span style="color:#6b6a5e;">·</span> <button class="ts-pin-link" id="ts-sign-out" style="margin:0;">Sign out</button></div>` : `
+        ${loginRequired ? '' : `
         <div class="ts-whoami">
           <label>I'm —</label>
           <select id="ts-who-select">
@@ -4764,7 +4855,7 @@ function computedCourseHandicap(indexVal, tee){
           </select>
         </div>
         `}
-        ${me ? `<div style="margin-top:6px;"><button class="ts-pin-link" id="ts-set-pin">${meHasPin ? 'Change my PIN' : 'Protect my signups with a PIN'}</button></div>` : ''}
+        ${me && !loginRequired ? `<div style="margin-top:6px;"><button class="ts-pin-link" id="ts-set-pin">${meHasPin ? 'Change my PIN' : 'Protect my signups with a PIN'}</button></div>` : ''}
         ${me && data.teeOptions.length ? `
           <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <label style="font-size:12px; color:#6b6a5e; font-weight:500;">My default tee</label>
@@ -5566,7 +5657,7 @@ function computedCourseHandicap(indexVal, tee){
     const tableHeaderHtml = `
       <div class="ts-roster-row" style="border-bottom:2px solid var(--ivory-line); padding-bottom:8px; margin-bottom:4px;">
         <span style="flex:1; min-width:170px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Player</span>
-        <span style="width:60px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
+        <span style="flex:1; min-width:110px; text-align:left; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
         <span style="width:140px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Tees</span>
         <span style="width:110px; text-align:right; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
       </div>`;
@@ -5633,8 +5724,8 @@ function computedCourseHandicap(indexVal, tee){
             <span id="ts-handicap-unsaved-note" style="font-size:12.5px; color:#6b6a5e; ${draftIsDirty ? '' : 'display:none;'}">Unsaved changes</span>
           </div>
           <div style="margin-top:10px;">
-            <button type="button" class="ts-manage-btn" id="ts-preview-handicap-email-btn">Preview handicap email</button>
-            <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">See exactly what the group would get — subject, body, and the Handicaps by Tee PDF — before it goes out, whether that's from the button after Save or the automatic send on the 1st/15th.</p>
+            <button type="button" class="ts-manage-btn" id="ts-preview-handicap-email-btn">Preview / send handicap email</button>
+            <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">See exactly what the group would get (subject, body, and the Handicaps by Tee PDF), then send it now or close it and send it later. You can send it any time, not just right after saving.</p>
           </div>
         </div>
       </div>
@@ -6033,17 +6124,25 @@ function computedCourseHandicap(indexVal, tee){
           if(played) total += v;
           const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
           const strokeTitle = strokesHere > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokesHere} stroke${strokesHere===1?'':'s'} here"` : '';
-          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
+          // Colored by the posted (gross) score against the hole's par, like a
+          // printed scorecard: birdie or better green, par beige, bogey pink,
+          // double bogey or worse dark pink. The brass dot still marks stroke holes.
+          const par = data.holePars[String(h)];
+          const scoreClass = (played && typeof par === 'number')
+            ? (v <= par - 1 ? ' ts-sc-birdie' : v === par ? ' ts-sc-par' : v === par + 1 ? ' ts-sc-bogey' : ' ts-sc-double')
+            : '';
+          return `<td class="${strokesHere > 0 ? 'ts-score-stroke' : ''}${played ? '' : ' ts-score-not-played'}${scoreClass}"${strokeTitle}><span class="ts-score-cell-wrap"><span class="ts-score-display${played ? '' : ' ts-score-not-played-text'}">${played ? v : '0'}</span>${strokesHere > 0 ? '<span class="ts-stroke-dot"></span>' : ''}</span></td>`;
         }).join('');
-        const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
-        const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
-        return `<tr><td class="ts-score-name">${playerLabel(p)}${teeNote}${soNote}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
+        // Name on the first line, tee and S.O. on the second, so the name
+        // column stays narrow enough for all 18 holes to fit on screen.
+        const teeSoLine = [p.tee ? esc(p.tee) : '', p.strokesOff ? `(S.O. ${p.strokesOff})` : ''].filter(Boolean).join(' ');
+        return `<tr><td class="ts-score-name">${playerLabel(p)}${teeSoLine ? `<br><span class="ts-team-so">${teeSoLine}</span>` : ''}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
       }).join('');
       return `
         <div class="ts-scorecard-block">
           <div class="ts-team-num">Team ${ti + 1}${ti === myTeamIndex ? ' <span class="ts-team-so">(mine)</span>' : ''}</div>
           <div style="overflow-x:auto;">
-            <table class="ts-scorecard-table">
+            <table class="ts-scorecard-table ts-live-scorecard">
               <thead>
                 <tr><th></th><th colspan="9">Front 9</th><th colspan="9">Back 9</th><th></th></tr>
                 <tr><th>Hole</th>${scorecardAllHoles.map(h => `<th>${h}</th>`).join('')}<th>Total</th></tr>
@@ -6799,12 +6898,12 @@ function computedCourseHandicap(indexVal, tee){
       let confirmControl = '';
       if(canConfirm){
         confirmControl = `<div class="ts-duty-row-sub ts-confirm-row">
-            <label>To be confirmed on ${MON_NAMES[r.bookDate.getMonth()]} ${r.bookDate.getDate()}:</label>
+            <label>On ${MON_NAMES[r.bookDate.getMonth()]} ${r.bookDate.getDate()},</label>
             <select data-confirm-key="${r.playKey}" style="width:52px; font-family:'Inter'; font-size:13px; padding:5px 4px; border-radius:6px; border:1px solid var(--ivory-line);">
               <option value="" ${!confirmed?'selected':''}>–</option>
               ${[1,2,3].map(n => `<option value="${n}" ${confirmed===n?'selected':''}>${n}</option>`).join('')}
             </select>
-            <span>tee time${confirmed===1?'':'s'} booked for ${playLabel}</span>
+            <span>tee time${confirmed===1?' was':'s were'} booked for ${playLabel}</span>
           </div>`;
       } else if(typeof confirmed === 'number' && confirmed > 0){
         confirmControl = `<div class="ts-duty-row-sub">✅ ${confirmed} tee time${confirmed===1?'':'s'} booked ${dayRef} for ${playLabel}</div>`;
@@ -7791,7 +7890,7 @@ function computedCourseHandicap(indexVal, tee){
 
     const previewHandicapEmailBtn = document.getElementById('ts-preview-handicap-email-btn');
     if(previewHandicapEmailBtn){
-      previewHandicapEmailBtn.addEventListener('click', previewHandicapEmailStandalone);
+      previewHandicapEmailBtn.addEventListener('click', maybeOfferHandicapUpdateEmail);
     }
 
     document.querySelectorAll('[data-hole-handicap]').forEach(inp => {
