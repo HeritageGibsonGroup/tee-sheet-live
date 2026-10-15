@@ -919,7 +919,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.15.3';
+  const APP_VERSION = '2026.10.15.4';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -6058,6 +6058,11 @@ function computedCourseHandicap(indexVal, tee){
         <p style="margin:8px 0 0; font-size:12px; color:#6b6a5e;">${round.teamsAccepted
           ? 'No pending swaps — Live Scoring is showing the current lineup.'
           : 'A player was swapped — click above to confirm before Live Scoring reflects it.'}</p>
+        ${isAdmin && dateKey >= fmtDateKey(new Date()) ? `
+        <div style="margin-top:14px;">
+          <button type="button" class="ts-manage-btn" id="ts-send-nightly-btn" data-send-nightly-date="${dateKey}">✉️ Email updated teams to the group</button>
+          <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">Resends the "playing tomorrow" email with these teams, marked "Updated:" in the subject. Use it after a drop-out or a change of teams.</p>
+        </div>` : ''}
       </div>`;
 
     // Match scoreboard is read-only — a summary to glance at, not where scores get
@@ -7712,33 +7717,8 @@ function computedCourseHandicap(indexVal, tee){
         if(!teamsInfo){ render(); return; }
         const slot = findTeamsInfoSlot(teamsInfo, pid);
         if(!slot){ render(); return; }
-        // A team is one tee time, so never more than PLAYERS_PER_TEE_TIME (4).
-        // Moving someone onto a full team becomes a straight swap instead: pick
-        // who on that team trades places with them, in one step.
-        if(cb.checked && targetTeam >= 0 && teamsInfo.teams[targetTeam] && teamsInfo.teams[targetTeam].length >= PLAYERS_PER_TEE_TIME){
-          const moving = slot.list[slot.index];
-          const targetList = teamsInfo.teams[targetTeam];
-          const fromLabel = slot.kind === 'team' ? `Team ${slot.teamIndex + 1}` : 'Not in Bet';
-          const otherId = await askChoice(
-            'Swap players?',
-            `Team ${targetTeam + 1} already has ${PLAYERS_PER_TEE_TIME} players, the most one tee time can take. Pick who on Team ${targetTeam + 1} swaps places with ${moving.name} (they'll move to ${fromLabel}).`,
-            targetList.map(p => ({ value: p.id, label: p.name })),
-            'Swap',
-            'Cancel'
-          );
-          if(!otherId){ render(); return; }
-          const otherIdx = targetList.findIndex(p => p.id === otherId);
-          if(otherIdx === -1){ render(); return; }
-          const other = targetList[otherIdx];
-          targetList[otherIdx] = recomputedForTeamSlot(dateKeyAttr, moving);
-          slot.list[slot.index] = slot.kind === 'team'
-            ? recomputedForTeamSlot(dateKeyAttr, other)
-            : Object.assign({}, other, { reason: notInBetReasonFor(dateKeyAttr, other.id, other.reason) });
-          ensureRoundDefaults(dateKeyAttr).teamsAccepted = false;
-          await saveData();
-          render();
-          return;
-        }
+        // Dots move freely, even past 4 on a team; team sizes are checked
+        // when "Accept teams after swapping players" is pressed.
         const player = slot.list[slot.index];
         slot.list.splice(slot.index, 1);
         if(cb.checked && targetTeam >= 0){
@@ -7784,9 +7764,80 @@ function computedCourseHandicap(indexVal, tee){
       };
     }
 
+    // "Email updated teams to the group": resends the "playing tomorrow" email
+    // for this date through the backend (send_nightly_email). Needs a script
+    // at SCRIPT_VERSION 2026.10.15.2 or later; an older script doesn't know
+    // that action, so the button refuses rather than sending it anything.
+    const sendNightlyBtn = document.getElementById('ts-send-nightly-btn');
+    if(sendNightlyBtn){
+      sendNightlyBtn.onclick = async () => {
+        if(!isAdmin) return;
+        const key = sendNightlyBtn.getAttribute('data-send-nightly-date');
+        if(!scriptVersion || scriptVersion < '2026.10.15.2'){
+          await showMessage('Script update needed', 'This button needs the newest Apps Script. Paste the latest Code_TEST.gs (test site) or Code_LIVE.gs (live site) into Code.gs and deploy a new version, then reload this page.');
+          return;
+        }
+        const round = data.rounds[key];
+        if(round && round.teamsAccepted === false){
+          await showMessage('Accept the teams first', 'Press "Accept teams after swapping players" first, so the email shows the final teams.');
+          return;
+        }
+        const d = new Date(key + 'T00:00:00');
+        const tomorrowKey = (() => { const t = new Date(); t.setDate(t.getDate() + 1); return fmtDateKey(t); })();
+        const dateLabel = d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const proceed = await askConfirm(
+          'Email updated teams?',
+          `This sends the "playing tomorrow" email for ${dateLabel} again, with the current teams and "Updated:" in the subject, to the whole roster, the pro shop and the extra recipients.` +
+            (key === tomorrowKey ? '' : ' Note: that date is not tomorrow, but the email wording still says "tomorrow".'),
+          'Send now',
+          'Cancel'
+        );
+        if(!proceed) return;
+        let parsed = null, failed = false;
+        const endBusy = beginBusy('Sending email…');
+        try{
+          const res = await fetch(`${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=send_nightly_email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({ dateKey: key })
+          });
+          parsed = JSON.parse(await res.text());
+        }catch(e){
+          failed = true;
+        }finally{
+          endBusy();
+        }
+        if(failed) await showMessage("Couldn't send", 'Something went wrong reaching the server. Try again in a moment.');
+        else if(parsed && parsed.error) await showMessage("Couldn't send", parsed.error);
+        else if(parsed && parsed.sent === false) await showMessage('Not sent', parsed.reason || "The email wasn't sent.");
+        else await showMessage('Email sent', `The updated teams went out${parsed && parsed.recipientCount ? ` to ${parsed.recipientCount} addresses` : ''}.`);
+      };
+    }
+
     const acceptTeamsBtn = document.getElementById('ts-accept-teams-btn');
     if(acceptTeamsBtn){
       acceptTeamsBtn.onclick = async () => {
+        // Teams are one tee time each (at most 4) and the bet needs them all
+        // the same size, so flag anything else before accepting.
+        const teamsInfo = data.teams[scoringSelectedDate];
+        if(teamsInfo && teamsInfo.teams.length){
+          const sizes = teamsInfo.teams.map(t => t.length);
+          const largest = Math.min(Math.max(...sizes), PLAYERS_PER_TEE_TIME);
+          const problems = [];
+          sizes.forEach((n, i) => {
+            if(n > PLAYERS_PER_TEE_TIME) problems.push(`Team ${i + 1} has ${n} players (more than ${PLAYERS_PER_TEE_TIME} can't fit in one tee time).`);
+            else if(n < largest) problems.push(`Team ${i + 1} has only ${n} player${n === 1 ? '' : 's'} (other teams have ${largest}).`);
+          });
+          if(problems.length){
+            const proceed = await askConfirm(
+              'Check the team sizes',
+              problems.join(' ') + ' Teams should each have the same number of players, no more than ' + PLAYERS_PER_TEE_TIME + '. Accept anyway?',
+              'Accept anyway',
+              'Go back and fix'
+            );
+            if(!proceed) return;
+          }
+        }
         ensureRoundDefaults(scoringSelectedDate).teamsAccepted = true;
         await saveData();
         render();
@@ -8289,22 +8340,7 @@ function computedCourseHandicap(indexVal, tee){
           pendingGroupAssignments = Object.assign({}, data.playingGroups[dateKeyAttr] || {});
           pendingGroupAssignmentsDate = dateKeyAttr;
         }
-        // A playing group is one tee time, so never more than
-        // PLAYERS_PER_TEE_TIME (4). The last column (stored as -1) counts too.
-        const teamsInfoForGroups = data.teams[dateKeyAttr];
-        if(cb.checked && teamsInfoForGroups){
-          const numGroups = teamsInfoForGroups.teams.length;
-          const groupOf = id => { const gi = pendingGroupAssignments[id]; return (typeof gi === 'number' && gi >= 0 && gi < numGroups) ? gi : -1; };
-          const target = (targetGroup >= 0 && targetGroup < numGroups) ? targetGroup : -1;
-          const everyone = teamsInfoForGroups.teams.flat().concat(teamsInfoForGroups.notInBet || []);
-          const inTarget = everyone.filter(p => p.id !== pid && groupOf(p.id) === target).length;
-          if(inTarget >= PLAYERS_PER_TEE_TIME){
-            const groupLabel = `Group ${target === -1 ? numGroups + 1 : target + 1}`;
-            await showMessage('Group is full', `${groupLabel} already has ${PLAYERS_PER_TEE_TIME} players, the most one tee time can take. Move someone out of ${groupLabel} first.`);
-            render();
-            return;
-          }
-        }
+        // Dots move freely; group sizes are checked when "Accept groups" is pressed.
         if(cb.checked && targetGroup >= 0){
           pendingGroupAssignments[pid] = targetGroup;
         } else {
@@ -8318,6 +8354,26 @@ function computedCourseHandicap(indexVal, tee){
     if(acceptGroupsBtn){
       acceptGroupsBtn.onclick = async () => {
         if(pendingGroupAssignments === null || pendingGroupAssignmentsDate !== scoringSelectedDate) return;
+        // A playing group is one tee time, so flag any group over 4.
+        const teamsInfoForGroups = data.teams[scoringSelectedDate];
+        if(teamsInfoForGroups){
+          const numGroups = teamsInfoForGroups.teams.length;
+          const counts = Array.from({ length: numGroups + 1 }, () => 0);
+          teamsInfoForGroups.teams.flat().concat(teamsInfoForGroups.notInBet || []).forEach(p => {
+            const gi = pendingGroupAssignments[p.id];
+            counts[(typeof gi === 'number' && gi >= 0 && gi < numGroups) ? gi : numGroups]++;
+          });
+          const over = counts.map((n, i) => ({ n, i })).filter(x => x.n > PLAYERS_PER_TEE_TIME);
+          if(over.length){
+            const proceed = await askConfirm(
+              'Check the group sizes',
+              over.map(x => `Group ${x.i + 1} has ${x.n} players.`).join(' ') + ` A group is one tee time, so no more than ${PLAYERS_PER_TEE_TIME}. Accept anyway?`,
+              'Accept anyway',
+              'Go back and fix'
+            );
+            if(!proceed) return;
+          }
+        }
         data.playingGroups[scoringSelectedDate] = pendingGroupAssignments;
         pendingGroupAssignments = null;
         pendingGroupAssignmentsDate = null;
