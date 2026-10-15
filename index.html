@@ -85,6 +85,9 @@
   }
   .ts-topbar-link:hover, .ts-topbar-link:focus-visible{ opacity:1; }
   .ts-topbar .ts-admin-pill{ position:static; }
+  .ts-version-tag{ flex-basis:100%; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#9BB89A; }
+  .ts-version-tag .ts-version-old{ color:#F2B8A8; }
+  .ts-topbar-solo{ margin-top:4px; padding-right:60px; }
   .ts-admin-pill.on{ background:rgba(184,134,59,0.85); color:var(--fairway-dark); font-weight:600; opacity:.95; }
   .ts-title{
     font-family:'Fraunces',serif; font-weight:700; font-size:30px;
@@ -913,6 +916,10 @@
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
   const VERSION_DATE = 'October 15, 2026'; // update this each time a change is promoted to live
+  // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
+  // it's easy to see which page and script versions a site is running.
+  // Bump it with every change to this file.
+  const APP_VERSION = '2026.10.15';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1859,6 +1866,9 @@
   // Admin switch (Admin > Reminders > Require login), stored on the server. When true, nobody sees
   // the roster until they sign in with their email address and PIN (or the guest / admin PIN).
   let loginRequired = false;
+  // The backend's SCRIPT_VERSION, from get_login_setting. Stays null for a
+  // script older than the version label, or if the server couldn't be reached.
+  let scriptVersion = null;
   let expanded = {};
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
   let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'comms' | 'admin'
@@ -2428,6 +2438,16 @@
   // Use this instead of esc(p.name) anywhere a player's name is displayed —
   // it swaps in the made-up label for a true anonymous guest and otherwise
   // behaves exactly like esc(p.name).
+  // "Page 2026.10.15 · Script 2026.10.15" for the header's top-right corner. A
+  // script too old to report its version says so, as a reminder to paste in
+  // and deploy the newest Code_TEST.gs / Code_LIVE.gs.
+  function versionTagHtml(){
+    const scriptPart = scriptVersion
+      ? `Script ${esc(scriptVersion)}`
+      : `<span class="ts-version-old">Script: older version</span>`;
+    return `<span class="ts-version-tag">Page ${APP_VERSION} · ${scriptPart}</span>`;
+  }
+
   function playerLabel(p){
     return namesHiddenForViewer() ? guestPlayerLabel(p) : esc(p.name);
   }
@@ -2693,6 +2713,7 @@
       const parsed = JSON.parse(await res.text());
       if(parsed && !parsed.error && typeof parsed.required === 'boolean'){
         loginRequired = parsed.required;
+        scriptVersion = typeof parsed.version === 'string' ? parsed.version : null;
         try{ localStorage.setItem(LOGIN_REQ_KEY, loginRequired ? 'true' : 'false'); }catch(e){}
         return true;
       }
@@ -3276,6 +3297,15 @@ function computedCourseHandicap(indexVal, tee){
       <div class="ts-import-row">
         <span class="ts-import-row-label">Swap players between teams</span>
         <p style="margin:6px 0 8px;">${label || 'Check where each player belongs — Team 1, Team 2, or Not in bet. Regenerating teams for this date will undo any changes made here.'}</p>
+        <div class="ts-swap-two" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:0 0 12px;">
+          <span style="font-size:12.5px; font-weight:600; color:var(--ink);">Swap two players:</span>
+          ${['a','b'].map(which => `
+            <select id="ts-swap-two-${which}" data-swap-two-date="${dateKey}" style="font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line); max-width:220px;">
+              <option value="">Pick a player</option>
+              ${assignAllPlayers.map(({ p, teamIndex }) => `<option value="${p.id}">${playerLabel(p)} (${teamIndex === -1 ? 'Not in Bet' : 'Team ' + (teamIndex + 1)})</option>`).join('')}
+            </select>`).join('<span style="font-size:12.5px;">with</span>')}
+          <button type="button" class="ts-manage-btn" id="ts-swap-two-btn">Swap</button>
+        </div>
         <div style="overflow-x:auto;">
           <div class="ts-assign-grid" style="grid-template-columns: minmax(84px,1fr) repeat(${numCols}, minmax(44px,auto)); min-width:${84 + numCols * 44 + numCols * 6}px;">
             <div class="ts-assign-head"></div>
@@ -4836,8 +4866,10 @@ function computedCourseHandicap(indexVal, tee){
           ${me ? `<button class="ts-topbar-link" id="ts-set-pin">${meHasPin ? 'Change PIN' : 'Set PIN'}</button>` : ''}
           <button class="ts-topbar-link" id="ts-sign-out">Sign out</button>
           <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
+          ${versionTagHtml()}
         </div>` : `
-        <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>`}
+        <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
+        <div class="ts-topbar ts-topbar-solo">${versionTagHtml()}</div>`}
         <h1 class="ts-title">Heritage Gibson Group</h1>
         <p class="ts-eyebrow">
           ${data.roster.length} Player${data.roster.length===1?'':'s'}
@@ -7647,6 +7679,35 @@ function computedCourseHandicap(indexVal, tee){
         render();
       });
     });
+
+    // "Swap two players": any two players (on any team, or Not in Bet) trade
+    // places in one step, so team sizes never change.
+    const swapTwoBtn = document.getElementById('ts-swap-two-btn');
+    if(swapTwoBtn){
+      swapTwoBtn.onclick = async () => {
+        const selA = document.getElementById('ts-swap-two-a');
+        const selB = document.getElementById('ts-swap-two-b');
+        const dateKeyAttr = selA.getAttribute('data-swap-two-date');
+        const teamsInfo = data.teams[dateKeyAttr];
+        if(!teamsInfo) return;
+        if(!selA.value || !selB.value){ await showMessage('Pick two players', 'Choose a player in each box, then press Swap.'); return; }
+        const slotA = findTeamsInfoSlot(teamsInfo, selA.value);
+        const slotB = findTeamsInfoSlot(teamsInfo, selB.value);
+        if(!slotA || !slotB){ render(); return; }
+        const sameSide = slotA.kind === slotB.kind && (slotA.kind === 'notInBet' || slotA.teamIndex === slotB.teamIndex);
+        if(sameSide){ await showMessage('Already together', 'Those two are already on the same team. Pick players from different teams.'); return; }
+        const a = slotA.list[slotA.index];
+        const b = slotB.list[slotB.index];
+        const placeInto = (slot, player) => slot.kind === 'team'
+          ? recomputedForTeamSlot(dateKeyAttr, player)
+          : Object.assign({}, player, { reason: notInBetReasonFor(dateKeyAttr, player.id, player.reason) });
+        slotA.list[slotA.index] = placeInto(slotA, b);
+        slotB.list[slotB.index] = placeInto(slotB, a);
+        ensureRoundDefaults(dateKeyAttr).teamsAccepted = false;
+        await saveData();
+        render();
+      };
+    }
 
     const acceptTeamsBtn = document.getElementById('ts-accept-teams-btn');
     if(acceptTeamsBtn){
