@@ -919,7 +919,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.15.2';
+  const APP_VERSION = '2026.10.15.3';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -5489,17 +5489,23 @@ function computedCourseHandicap(indexVal, tee){
   function emailPreviewSampleTable(label, names, withTeam){
     const th = 'style="border:1px solid #999;padding:3px 6px;background:#eee;text-align:left;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
     const td = 'style="border:1px solid #999;padding:3px 6px;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
-    const rows = names.map((n, i) => `<tr><td ${td}>${esc(n)}</td><td ${td}>White</td><td ${td}>${8 + i * 4}</td><td ${td}>${i * 4}</td>${withTeam ? `<td ${td}>${(i % 2) + 1}</td>` : ''}</tr>`).join('');
-    return `<table style="border-collapse:collapse;margin:8px 0;"><tr><th ${th}>${esc(label)}</th><th ${th}>Tees</th><th ${th}>Course Handicap</th><th ${th}>Strokes Off</th>${withTeam ? `<th ${th}>Team</th>` : ''}</tr>${rows}</table>`;
+    // Left column (names) left-aligned, every other column centered, same as the real email.
+    const thC = th.replace('text-align:left;', 'text-align:center;');
+    const tdC = td.replace('font-size:11pt;"', 'font-size:11pt;text-align:center;"');
+    const rows = names.map((n, i) => `<tr><td ${td}>${esc(n)}</td><td ${tdC}>White</td><td ${tdC}>${8 + i * 4}</td><td ${tdC}>${i * 4}</td>${withTeam ? `<td ${tdC}>${(i % 2) + 1}</td>` : ''}</tr>`).join('');
+    return `<table style="border-collapse:collapse;margin:8px 0;"><tr><th ${th}>${esc(label)}</th><th ${thC}>Tees</th><th ${thC}>Course Handicap</th><th ${thC}>Strokes Off</th>${withTeam ? `<th ${thC}>Team</th>` : ''}</tr>${rows}</table>`;
   }
   // Real version of the table above, for the nightly preview: same columns as
   // the email (reminderPlayerTableHtml_ in Code.gs), filled from actual players.
   function emailPreviewPlayerTable(label, players, teamLabelById){
     const th = 'style="border:1px solid #999;padding:3px 6px;background:#eee;text-align:left;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
     const td = 'style="border:1px solid #999;padding:3px 6px;font-family:Calibri,Arial,sans-serif;font-size:11pt;"';
+    // Left column (names) left-aligned, every other column centered, same as the real email.
+    const thC = th.replace('text-align:left;', 'text-align:center;');
+    const tdC = td.replace('font-size:11pt;"', 'font-size:11pt;text-align:center;"');
     const num = v => typeof v === 'number' ? v : '—';
-    const rows = players.map(p => `<tr><td ${td}>${esc(p.name)}</td><td ${td}>${p.tee ? esc(p.tee) : '—'}</td><td ${td}>${num(p.courseHandicap)}</td><td ${td}>${num(p.strokesOff)}</td>${teamLabelById ? `<td ${td}>${esc(teamLabelById[p.id] || '')}</td>` : ''}</tr>`).join('');
-    return `<table style="border-collapse:collapse;margin:8px 0;"><tr><th ${th}>${esc(label)}</th><th ${th}>Tees</th><th ${th}>Course Handicap</th><th ${th}>Strokes Off</th>${teamLabelById ? `<th ${th}>Team</th>` : ''}</tr>${rows}</table>`;
+    const rows = players.map(p => `<tr><td ${td}>${esc(p.name)}</td><td ${tdC}>${p.tee ? esc(p.tee) : '—'}</td><td ${tdC}>${num(p.courseHandicap)}</td><td ${tdC}>${num(p.strokesOff)}</td>${teamLabelById ? `<td ${tdC}>${esc(teamLabelById[p.id] || '')}</td>` : ''}</tr>`).join('');
+    return `<table style="border-collapse:collapse;margin:8px 0;"><tr><th ${th}>${esc(label)}</th><th ${thC}>Tees</th><th ${thC}>Course Handicap</th><th ${thC}>Strokes Off</th>${teamLabelById ? `<th ${thC}>Team</th>` : ''}</tr>${rows}</table>`;
   }
   // The next play date after today with anyone signed up, and the teams the
   // nightly email would list for it: the generated teams if there are any,
