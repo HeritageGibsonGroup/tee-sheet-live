@@ -933,7 +933,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.16';
+  const APP_VERSION = '2026.10.16.2';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1912,6 +1912,7 @@
   let expanded = {};
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
   let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'comms' | 'admin'
+  let activityLogView = 'upcoming'; // Admin > Activity Log: 'upcoming' | 'past'
   let adminSubTab = 'roster'; // 'roster' | 'closures' | 'pastDuty' | 'activityLog' | 'data' | 'reminders' | 'handicaps'
   let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab — always the upcoming round unless reviewDateKey (below) pins it to a past one
   // Set by "Review prior rounds" — null means Scoring & Bets always follows
@@ -7225,15 +7226,19 @@ function computedCourseHandicap(indexVal, tee){
       return `${datePart}, ${timePart}`;
     };
 
-    const entries = (data.activityLog || []).filter(e => {
+    const affectsUpcoming = (e) => {
       if(e.type === 'signup' || e.type === 'dropout'){
-        return e.dateKey && e.dateKey >= todayKey;
+        return !!(e.dateKey && e.dateKey >= todayKey);
       }
       if(e.type === 'swap_requested' || e.type === 'swap_accepted' || e.type === 'swap_declined'){
-        return (e.fromKey && e.fromKey >= todayKey) || (e.toKey && e.toKey >= todayKey);
+        return !!((e.fromKey && e.fromKey >= todayKey) || (e.toKey && e.toKey >= todayKey));
       }
       return false;
-    }).sort((a,b) => b.ts - a.ts);
+    };
+    // "Upcoming dates": activity for dates not played yet. "Past activity":
+    // everything else still on file (the nightly digest keeps 90 days).
+    const showPast = activityLogView === 'past';
+    const entries = (data.activityLog || []).filter(e => showPast ? !affectsUpcoming(e) : affectsUpcoming(e)).sort((a,b) => b.ts - a.ts);
 
     const lineFor = (e) => {
       const who = esc(e.playerName || 'Unknown');
@@ -7251,16 +7256,24 @@ function computedCourseHandicap(indexVal, tee){
             <div>${lineFor(e)}</div>
             <div style="font-size:11.5px; color:#8b8a7c; margin-top:2px;">${fmtWhen(e.ts)}</div>
           </div>`).join('')
-      : `<p class="ts-empty">No signups, drop-outs, or duty swaps affecting an upcoming date yet.</p>`;
+      : `<p class="ts-empty">${showPast ? 'No past activity on file yet.' : 'No signups, drop-outs, or duty swaps affecting an upcoming date yet.'}</p>`;
 
     el.innerHTML = `
       <div class="ts-roster-panel">
+        <div class="ts-subtabbar" style="margin:0 0 10px;">
+          <button class="ts-subtab ${showPast ? '' : 'active'}" data-activity-view="upcoming">Upcoming dates</button>
+          <button class="ts-subtab ${showPast ? 'active' : ''}" data-activity-view="past">Past activity</button>
+        </div>
         <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">
-          Signups, drop-outs, and booking-duty swaps affecting a date that hasn't been played yet, most recent first.
-          (History for already-played dates isn't shown here, but still goes out in the nightly email digest.)
+          ${showPast
+            ? 'Signups, drop-outs, and booking-duty swaps for dates that have already been played, most recent first. Kept for 90 days.'
+            : "Signups, drop-outs, and booking-duty swaps affecting a date that hasn't been played yet, most recent first."}
         </p>
         ${rowsHtml}
       </div>`;
+    el.querySelectorAll('[data-activity-view]').forEach(btn => {
+      btn.onclick = () => { activityLogView = btn.getAttribute('data-activity-view'); render(); };
+    });
   }
 
   function wireRosterPanel(){
