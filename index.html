@@ -357,7 +357,21 @@
      is why "Bigger buttons" enlarged the controls but never the name. Keep the
      defaults here so the override actually applies. */
   .ts-hbh-player-name{ font-weight:600; font-size:15px; }
+  /* Phones: a little tighter so a whole 6-hole series fits without scrolling. */
+  @media (max-width:480px){
+    .ts-score-table th, .ts-score-table td{ padding:3px 1px; }
+    .ts-score-table td.ts-score-name, .ts-score-table th:first-child{ padding-right:6px; }
+    .ts-score-table .ts-score-display{ width:27px; }
+  }
   .ts-hbh-player-note{ font-size:11.5px; color:#8b8a7c; }
+  /* "Saving…" next to a player's name while their hole score is being sent. */
+  .ts-hbh-saving{
+    display:none; align-items:center; gap:6px; margin-left:10px; vertical-align:middle;
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:600; color:var(--fairway);
+    background:#fff; border:1.5px solid var(--fairway); border-radius:999px; padding:2px 9px;
+  }
+  .ts-hbh-saving.show{ display:inline-flex; }
+  .ts-big-controls .ts-hbh-saving{ font-size:16px; }
   .ts-big-controls .ts-hbh-player-name{ font-size:30px; line-height:1.15; }
   .ts-big-controls .ts-hbh-player-note{ font-size:19px; line-height:1.35; color:#5f5e52; }
   /* "gets a stroke here" is the one thing on this line that changes the math,
@@ -919,7 +933,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.15.5';
+  const APP_VERSION = '2026.10.16';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -957,9 +971,11 @@
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     // Every save goes out as a POST, so this one spot puts the "Saving…"
     // indicator on all of them.
-    const endBusy = (options && options.method === 'POST') ? beginBusy('Saving…') : null;
+    const endBusy = (options && options.method === 'POST' && !options.quietBusy) ? beginBusy('Saving…') : null;
     try{
-      return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+      const fetchOptions = Object.assign({}, options, { signal: controller.signal });
+      delete fetchOptions.quietBusy;
+      return await fetch(url, fetchOptions);
     } finally {
       clearTimeout(timer);
       if(endBusy) endBusy();
@@ -1279,15 +1295,36 @@
   // score for this hole. Updates local state optimistically first (so the UI
   // reflects the post immediately even on a slow connection), then sends the
   // one batched request.
+  // Hole scores being sent right now, as pendingKey -> player ids. While a
+  // player's score is on its way, Live Scoring shows "Saving…" right next to
+  // that player's name (where the scorer is looking) instead of the pill at
+  // the top of the screen. Updated straight in the page, without re-rendering,
+  // so it never interrupts someone entering the next hole.
+  const holePostsInFlight = new Map();
+  function playerIdsSavingNow(){
+    const ids = new Set();
+    holePostsInFlight.forEach(list => list.forEach(id => ids.add(id)));
+    return ids;
+  }
+  function refreshHoleSavingMarks(){
+    const ids = playerIdsSavingNow();
+    document.querySelectorAll('[data-hbh-saving-pid]').forEach(el => {
+      el.classList.toggle('show', ids.has(el.getAttribute('data-hbh-saving-pid')));
+    });
+  }
+
   async function postHoleScores(dateKey, holeNum, entries){
     const round = ensureRoundDefaults(dateKey);
     const holeKey = String(holeNum);
     applyHoleEntries_(round, holeKey, entries);
     const pendingKey = holePostKey(dateKey, holeKey);
+    holePostsInFlight.set(pendingKey, (entries || []).map(en => en && (en.playerId || en.id)).filter(Boolean));
+    refreshHoleSavingMarks();
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=save_hole_scores`;
       const res = await fetchWithTimeout(url, {
         method: 'POST',
+        quietBusy: true,
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ dateKey, holeNum: holeKey, entries })
       });
@@ -1308,6 +1345,9 @@
       unsavedHoleKeys.add(pendingKey);
       pendingHolePosts[pendingKey] = { dateKey, holeNum: holeKey, entries };
       return false;
+    }finally{
+      holePostsInFlight.delete(pendingKey);
+      refreshHoleSavingMarks();
     }
   }
 
@@ -3802,6 +3842,9 @@ function computedCourseHandicap(indexVal, tee){
   }
 
   function teamLowBallHoleNet(team, holeNum, scores, K, basis){
+    // A team with nobody on it (e.g. everyone swapped off it) has no score at
+    // all, rather than an automatic 0 that would beat every real team.
+    if(!team || !team.length) return null;
     const nets = [];
     for(const p of team){
       const v = (scores[p.id] || {})[String(holeNum)];
@@ -3849,21 +3892,24 @@ function computedCourseHandicap(indexVal, tee){
     });
 
     const numTeams = teamsInfo.teams.length;
+    // Only teams that actually have players are in the bet; an empty team
+    // (everyone swapped off it) is skipped entirely and never wins or pays.
+    const activeTeams = teamsInfo.teams.map((t, ti) => ti).filter(ti => teamsInfo.teams[ti].length > 0);
+    const numActive = activeTeams.length;
     const seriesResults = [];
     const teamTotals = Array.from({ length: numTeams }, () => 0);
     for(let si = 0; si < NUM_SERIES; si++){
-      const allComplete = teamSeriesNet.every(t => t[si].complete);
+      const allComplete = numActive >= 2 && activeTeams.every(ti => teamSeriesNet[ti][si].complete);
       let winner = null, tie = false;
       if(allComplete){
-        const minNet = Math.min(...teamSeriesNet.map(t => t[si].net));
-        const leaders = [];
-        teamSeriesNet.forEach((t, ti) => { if(t[si].net === minNet) leaders.push(ti); });
+        const minNet = Math.min(...activeTeams.map(ti => teamSeriesNet[ti][si].net));
+        const leaders = activeTeams.filter(ti => teamSeriesNet[ti][si].net === minNet);
         if(leaders.length === 1){
           winner = leaders[0];
-          for(let ti = 0; ti < numTeams; ti++){
-            if(ti === winner) teamTotals[ti] += stake * (numTeams - 1);
+          activeTeams.forEach(ti => {
+            if(ti === winner) teamTotals[ti] += stake * (numActive - 1);
             else teamTotals[ti] -= stake;
-          }
+          });
         } else {
           tie = true; // full push — no money changes hands for anyone
         }
@@ -6064,6 +6110,7 @@ function computedCourseHandicap(indexVal, tee){
     if(scoreboardSeriesFilter < 0 || scoreboardSeriesFilter >= groups.length) scoreboardSeriesFilter = 0;
     const scoreboardHoles = groups[scoreboardSeriesFilter] || flatHoles;
     const teamCardsHtml = teamsInfo.teams.map((team, ti) => {
+      if(!team.length) return '';
       const rowsHtml = team.map(p => {
         const playerScores = round.scores[p.id] || {};
         const cellsHtml = scoreboardHoles.map(h => {
@@ -6083,8 +6130,10 @@ function computedCourseHandicap(indexVal, tee){
         }).join('');
         // Just a label here, not a control — switching tees happens in Set up
         // & Bets before the round starts, so there's one place to change it.
-        const teeLabelHtml = p.tee ? `<br><span class="ts-team-so">${esc(p.tee)}</span>` : '';
-        return `<tr><td class="ts-score-name">${playerLabel(p)}${p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : ''}${teeLabelHtml}</td>${cellsHtml}</tr>`;
+        // Name on the first line, then tee and S.O. underneath ("Gold (S.O. 12)"),
+        // so the name column stays narrow enough for a whole series on a phone.
+        const teeSoLine = [p.tee ? esc(p.tee) : '', p.strokesOff ? `(S.O. ${p.strokesOff})` : ''].filter(Boolean).join(' ');
+        return `<tr><td class="ts-score-name">${playerLabel(p)}${teeSoLine ? `<br><span class="ts-team-so">${teeSoLine}</span>` : ''}</td>${cellsHtml}</tr>`;
       }).join('');
 
       const runningForTeam = lowBallHoleRunning ? lowBallHoleRunning[ti] : null;
@@ -6302,7 +6351,7 @@ function computedCourseHandicap(indexVal, tee){
       return `
         <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
-            <div class="ts-hbh-player-name">${playerLabel(p)}</div>
+            <div class="ts-hbh-player-name">${playerLabel(p)}<span class="ts-hbh-saving${playerIdsSavingNow().has(p.id) ? ' show' : ''}" data-hbh-saving-pid="${p.id}"><span class="ts-busy-spinner"></span>Saving…</span></div>
             <div class="ts-hbh-player-note">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
           </div>
           <div class="ts-hbh-controls" style="display:flex; align-items:center; gap:6px;">
@@ -6397,10 +6446,11 @@ function computedCourseHandicap(indexVal, tee){
     // no winner, per "if there is no circle, the series was tied."
     const seriesWinnerIndex = (si) => {
       if (!lowBallProgress) return -1;
-      const cells = teamsInfo.teams.map((t, ti) => lowBallProgress[ti][si]);
-      if (cells.some(c => !c || c.holesCounted < c.holesInSeries)) return -1;
+      const active = teamsInfo.teams.map((t, ti) => ti).filter(ti => teamsInfo.teams[ti].length > 0);
+      const cells = active.map(ti => lowBallProgress[ti][si]);
+      if (cells.length < 2 || cells.some(c => !c || c.holesCounted < c.holesInSeries)) return -1;
       const min = Math.min(...cells.map(c => c.relToPar));
-      const winners = cells.reduce((acc, c, ti) => c.relToPar === min ? acc.concat(ti) : acc, []);
+      const winners = active.filter((ti, i) => cells[i].relToPar === min);
       return winners.length === 1 ? winners[0] : -1;
     };
     const standingsHtml = standings ? `
@@ -6417,6 +6467,7 @@ function computedCourseHandicap(indexVal, tee){
             </thead>
             <tbody>
               ${teamsInfo.teams.map((t, ti) => {
+                if(!t.length) return '';
                 const total = standings.teamTotals[ti];
                 return `<tr>
                   <td class="ts-score-name">Team ${ti+1}</td>
