@@ -933,7 +933,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.16.2';
+  const APP_VERSION = '2026.10.23';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -2369,6 +2369,14 @@
   }
   async function persistVerified(){
     try{ localStorage.setItem(VERIFIED_KEY, JSON.stringify(verifiedPlayers)); }catch(e){}
+  }
+
+  // Duty is stored by the round (play date), but everyone thinks of it by the
+  // day they go to the pro shop, BOOKING_WINDOW_DAYS earlier. Swap screens
+  // label dates this way so they match what the Booking Duty list shows.
+  function bookingDayLabelFor(playKey){
+    const d = new Date(playKey + 'T00:00:00'); d.setDate(d.getDate() - BOOKING_WINDOW_DAYS);
+    return `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
   }
 
   function dutyForKey(key){
@@ -6923,7 +6931,7 @@ function computedCourseHandicap(indexVal, tee){
       if(data.closures[targetKey]) return;
       const assigned = dutyForKey(targetKey);
       if(!assigned || assigned.id === meId) return;
-      const label = `${DOW_NAMES[target.getDay()]}, ${MON_NAMES[target.getMonth()]} ${target.getDate()} — ${assigned.name}`;
+      const label = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()} — ${assigned.name}`;
       options.push({ value: targetKey, label });
     });
     if(options.length === 0){
@@ -7101,10 +7109,8 @@ function computedCourseHandicap(indexVal, tee){
     const incoming = meId ? pendingIncomingFor(meId) : [];
     const incomingHtml = incoming.map(req => {
       const requester = data.roster.find(p => p.id === req.requesterId);
-      const fromDate = new Date(req.fromKey + 'T00:00:00');
-      const toDate = new Date(req.toKey + 'T00:00:00');
-      const fromLabel = `${MON_NAMES[fromDate.getMonth()]} ${fromDate.getDate()}`;
-      const toLabel = `${MON_NAMES[toDate.getMonth()]} ${toDate.getDate()}`;
+      const fromLabel = bookingDayLabelFor(req.fromKey);
+      const toLabel = bookingDayLabelFor(req.toKey);
       return `<div class="ts-booking-alert"><span class="flag">🔁</span><div>
                 <b>${esc(requester ? requester.name : 'Someone')}</b> wants to trade their <b>${fromLabel}</b> duty for your <b>${toLabel}</b> duty.
                 <div style="margin-top:6px;">
@@ -7244,9 +7250,9 @@ function computedCourseHandicap(indexVal, tee){
       const who = esc(e.playerName || 'Unknown');
       if(e.type === 'signup') return `${who} signed up for ${labelForKey(e.dateKey)}`;
       if(e.type === 'dropout') return `${who} dropped out of ${labelForKey(e.dateKey)}`;
-      if(e.type === 'swap_requested') return `${who} requested to swap booking duty with ${esc(e.otherName || 'someone')} (${labelForKey(e.fromKey)} ↔ ${labelForKey(e.toKey)})`;
-      if(e.type === 'swap_accepted') return `${who} accepted a booking-duty swap with ${esc(e.otherName || 'someone')} (${labelForKey(e.fromKey)} ↔ ${labelForKey(e.toKey)})`;
-      if(e.type === 'swap_declined') return `${who} declined a booking-duty swap with ${esc(e.otherName || 'someone')} (${labelForKey(e.fromKey)} ↔ ${labelForKey(e.toKey)})`;
+      if(e.type === 'swap_requested') return `${who} requested to swap booking duty with ${esc(e.otherName || 'someone')} (duty days ${bookingDayLabelFor(e.fromKey)} ↔ ${bookingDayLabelFor(e.toKey)})`;
+      if(e.type === 'swap_accepted') return `${who} accepted a booking-duty swap with ${esc(e.otherName || 'someone')} (duty days ${bookingDayLabelFor(e.fromKey)} ↔ ${bookingDayLabelFor(e.toKey)})`;
+      if(e.type === 'swap_declined') return `${who} declined a booking-duty swap with ${esc(e.otherName || 'someone')} (duty days ${bookingDayLabelFor(e.fromKey)} ↔ ${bookingDayLabelFor(e.toKey)})`;
       return `${who}: ${esc(e.type)}`;
     };
 
