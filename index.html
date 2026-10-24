@@ -8,7 +8,7 @@
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="icon" href="icon-512.png" sizes="512x512">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
   html{ scroll-behavior:smooth; }
@@ -34,12 +34,12 @@
     -webkit-font-smoothing:antialiased;
   }
   .ts-warn-banner{
-    background:#3a2a12; color:#F6E7C9; font-size:12.5px; text-align:center; padding:9px 14px; line-height:1.5;
+    background:#3a2a12; color:#F6E7C9; font-size:13px; text-align:center; padding:9px 14px; line-height:1.5;
   }
   .ts-warn-banner b{ color:#FFD98A; }
   .ts-test-banner{
     background:repeating-linear-gradient(135deg, #7A1F1F, #7A1F1F 10px, #5C1616 10px, #5C1616 20px);
-    color:#FFE9E9; font-size:12.5px; font-weight:700; letter-spacing:.04em; text-align:center;
+    color:#FFE9E9; font-size:13px; font-weight:700; letter-spacing:.04em; text-align:center;
     padding:9px 14px; line-height:1.5; text-transform:uppercase;
   }
   .ts-header{
@@ -59,7 +59,7 @@
     opacity:0.55;
   }
   .ts-eyebrow{
-    font-family:'IBM Plex Mono',monospace;
+    font-family:'Inter',sans-serif;
     font-size:11px; letter-spacing:.14em; text-transform:uppercase;
     color:var(--brass-light); margin:6px 0 6px;
     display:flex; align-items:center; gap:8px; flex-wrap:wrap;
@@ -76,16 +76,16 @@
      then the admin lock. Shown when players sign in with email + PIN. */
   .ts-topbar{
     display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap;
-    gap:6px 18px; margin:-18px -12px 14px 0; font-size:12.5px; color:#CFE0CC;
+    gap:6px 18px; margin:-18px -12px 14px 0; font-size:13px; color:#CFE0CC;
   }
   .ts-topbar strong{ color:var(--ivory); font-weight:600; }
   .ts-topbar-link{
-    font-family:'Inter',sans-serif; font-size:12.5px; color:var(--ivory); background:none; border:none;
+    font-family:'Inter',sans-serif; font-size:13px; color:var(--ivory); background:none; border:none;
     padding:0; text-decoration:underline; cursor:pointer; opacity:.85;
   }
   .ts-topbar-link:hover, .ts-topbar-link:focus-visible{ opacity:1; }
   .ts-topbar .ts-admin-pill{ position:static; }
-  .ts-version-tag{ flex-basis:100%; text-align:right; font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#9BB89A; }
+  .ts-version-tag{ flex-basis:100%; text-align:right; font-family:'Inter',sans-serif; font-size:11px; color:#9BB89A; }
   .ts-version-tag .ts-version-old{ color:#F2B8A8; }
   .ts-topbar-solo{ margin-top:4px; padding-right:60px; }
   .ts-admin-pill.on{ background:rgba(184,134,59,0.85); color:var(--fairway-dark); font-weight:600; opacity:.95; }
@@ -93,8 +93,8 @@
     font-family:'Fraunces',serif; font-weight:700; font-size:30px;
     margin:0; letter-spacing:-0.01em;
   }
-  .ts-version{ font-size:11px; color:#9BB89A; margin:2px 0 0; font-family:'IBM Plex Mono',monospace; }
-  .ts-sub{ font-size:13.5px; color:#CFE0CC; margin:6px 0 0; max-width:520px; line-height:1.5;}
+  .ts-version{ font-size:11px; color:#9BB89A; margin:2px 0 0; font-family:'Inter',sans-serif; }
+  .ts-sub{ font-size:14px; color:#CFE0CC; margin:6px 0 0; max-width:520px; line-height:1.5;}
 
   .ts-body{ max-width:760px; margin:0 auto; padding:0 20px 60px; }
 
@@ -109,22 +109,22 @@
     border:1px solid var(--ivory-line); background:var(--ivory); color:var(--ink); flex:1; min-width:160px;
   }
   .ts-manage-btn{
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:500; color:var(--fairway);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:500; color:var(--fairway);
     background:none; border:1px solid var(--ivory-line); padding:7px 12px; border-radius:7px; cursor:pointer;
   }
   .ts-manage-btn:hover{ background:var(--ivory); }
   .ts-login-card{ max-width:380px; margin:18px auto 0; background:#fff; border:1px solid var(--ivory-line); border-radius:12px; padding:20px 18px; }
-  .ts-login-card label{ display:block; font-size:12.5px; color:#6b6a5e; font-weight:600; margin:10px 0 6px; }
+  .ts-login-card label{ display:block; font-size:13px; color:#6b6a5e; font-weight:600; margin:10px 0 6px; }
   .ts-login-card input{ width:100%; font-family:'Inter',sans-serif; font-size:16px; padding:11px 12px; border-radius:8px; border:1px solid var(--ivory-line); background:#fff; color:var(--ink); }
   .ts-login-btn{ width:100%; margin-top:14px; font-family:'Inter',sans-serif; font-size:15px; font-weight:600; padding:12px; border:none; border-radius:8px; background:var(--fairway); color:var(--ivory); cursor:pointer; }
   .ts-login-alt{ margin-top:14px; display:flex; justify-content:center; gap:10px; align-items:center; }
   .ts-login-alt > span{ display:none; }
   .ts-login-alt .ts-pin-link{ flex:1; font-family:'Inter',sans-serif; font-size:14px; font-weight:600; text-decoration:none; color:var(--fairway); background:#fff; border:1.5px solid var(--fairway); border-radius:8px; padding:11px 10px; cursor:pointer; }
   .ts-login-alt .ts-pin-link:hover{ background:var(--ivory); }
-  .ts-login-note{ margin:0 0 4px; font-size:13.5px; color:var(--ink); line-height:1.45; }
+  .ts-login-note{ margin:0 0 4px; font-size:14px; color:var(--ink); line-height:1.45; }
   .ts-login-err{ min-height:18px; margin:12px 0 0; color:var(--rust); font-size:13px; line-height:1.4; }
   .ts-pin-link{
-    font-size:11.5px; color:#6b6a5e; text-decoration:underline; cursor:pointer; background:none; border:none; padding:0;
+    font-size:12px; color:#6b6a5e; text-decoration:underline; cursor:pointer; background:none; border:none; padding:0;
   }
 
   .ts-tabbar{
@@ -146,7 +146,7 @@
   }
   .ts-tab-badge{
     position:absolute; top:6px; right:8px; min-width:20px; padding:1px 6px; border-radius:999px;
-    background:#B3261E; color:#fff; font-size:11.5px; font-weight:700; text-align:center; line-height:17px;
+    background:#B3261E; color:#fff; font-size:12px; font-weight:700; text-align:center; line-height:17px;
   }
   .ts-comms-input{
     width:100%; font-family:'Inter',sans-serif; font-size:14px; padding:9px 11px; border-radius:8px;
@@ -159,10 +159,10 @@
   .ts-comms-notice{ margin-top:8px; padding:8px 10px; border-radius:8px; font-size:13px; }
   .ts-comms-notice.ok{ background:#E8EFE9; color:var(--fairway); }
   .ts-comms-notice.warn{ background:#FBEFD5; color:#7a5a12; }
-  .ts-comms-aud-label{ display:block; font-size:12.5px; font-weight:600; color:#6b6a5e; margin-bottom:4px; }
+  .ts-comms-aud-label{ display:block; font-size:13px; font-weight:600; color:#6b6a5e; margin-bottom:4px; }
   .ts-comms-btn{
     background:var(--fairway); color:var(--ivory); border:none; padding:9px 16px; border-radius:8px;
-    font-size:13.5px; font-weight:600; cursor:pointer;
+    font-size:14px; font-weight:600; cursor:pointer;
   }
   .ts-comms-btn:disabled{ opacity:.55; cursor:default; }
   .ts-comms-head{
@@ -174,12 +174,12 @@
   .ts-comms-sub{ font-size:12px; color:#6b6a5e; }
   .ts-comms-preview{ font-size:13px; color:#3d3c34; }
   .ts-comms-new{
-    display:inline-block; background:var(--brass); color:#fff; font-size:10.5px; font-weight:700;
+    display:inline-block; background:var(--brass); color:#fff; font-size:11px; font-weight:700;
     padding:1px 7px; border-radius:999px; vertical-align:middle; margin-left:4px; letter-spacing:.03em;
   }
   .ts-comms-body{ border-top:1px solid var(--ivory-line); padding:6px 15px 14px; }
   .ts-comms-msg{ padding:10px 0; border-bottom:1px dashed var(--ivory-line); }
-  .ts-comms-msg.root .ts-comms-msg-body{ font-size:14.5px; }
+  .ts-comms-msg.root .ts-comms-msg-body{ font-size:14px; }
   .ts-comms-msg-meta{ font-size:12px; color:#6b6a5e; margin-bottom:3px; }
   .ts-comms-msg-body{ font-size:14px; line-height:1.45; word-wrap:break-word; overflow-wrap:anywhere; }
   .ts-comms-del{
@@ -204,7 +204,7 @@
   .ts-reminders{ margin-top:18px; display:flex; flex-direction:column; gap:8px; }
   .ts-reminder{
     display:flex; gap:10px; align-items:flex-start; background:#FBF0EA; border:1px solid #EBCFC1;
-    border-left:3px solid var(--rust); border-radius:8px; padding:11px 13px; font-size:13.5px; line-height:1.45;
+    border-left:3px solid var(--rust); border-radius:8px; padding:11px 13px; font-size:14px; line-height:1.45;
   }
   .ts-reminder b{ font-weight:600; }
   .ts-reminder .flag{ font-size:15px; line-height:1.2; }
@@ -213,7 +213,7 @@
     font-family:'Fraunces',serif; font-weight:600; font-size:19px; margin:30px 0 12px;
     display:flex; align-items:baseline; gap:8px;
   }
-  .ts-section-title span{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:#8b8a7c; font-weight:400; }
+  .ts-section-title span{ font-family:'Inter',sans-serif; font-size:11px; color:#8b8a7c; font-weight:400; }
 
   .ts-card{
     background:#fff; border:1px solid var(--ivory-line); border-radius:10px; margin-bottom:10px;
@@ -224,18 +224,18 @@
   }
   .ts-card-row:hover{ background:#FBFAF5; }
   .ts-date-block{
-    font-family:'IBM Plex Mono',monospace; text-align:center; width:52px; flex-shrink:0;
+    font-family:'Inter',sans-serif; text-align:center; width:52px; flex-shrink:0;
     border-right:1px dashed var(--ivory-line); padding-right:12px;
   }
-  .ts-date-dow{ font-size:10.5px; letter-spacing:.08em; color:var(--sage); text-transform:uppercase; }
+  .ts-date-dow{ font-size:11px; letter-spacing:.08em; color:var(--sage); text-transform:uppercase; }
   .ts-date-num{ font-size:20px; font-weight:500; color:var(--ink); line-height:1.1; }
-  .ts-date-mon{ font-size:10px; color:#8b8a7c; text-transform:uppercase; }
+  .ts-date-mon{ font-size:11px; color:#8b8a7c; text-transform:uppercase; }
 
   .ts-card-mid{ flex:1; min-width:0; }
   .ts-card-mid-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .ts-count{ font-size:14px; font-weight:600; }
   .ts-teetimes{
-    font-family:'IBM Plex Mono',monospace; font-size:11px; background:var(--fairway); color:var(--ivory);
+    font-family:'Inter',sans-serif; font-size:11px; background:var(--fairway); color:var(--ivory);
     padding:2px 7px; border-radius:20px;
   }
   .ts-teetimes.zero{ background:#e6e2d4; color:#8b8a7c; }
@@ -247,10 +247,10 @@
   }
   .ts-duty-static{ font-weight:500; }
   .ts-duty-lock{
-    font-size:10.5px; color:#a3a293; background:none; border:none; cursor:pointer; text-decoration:underline; padding:0;
+    font-size:11px; color:#a3a293; background:none; border:none; cursor:pointer; text-decoration:underline; padding:0;
   }
   .ts-duty-window{
-    font-family:'IBM Plex Mono',monospace; font-size:10.5px; padding:1px 6px; border-radius:5px;
+    font-family:'Inter',sans-serif; font-size:11px; padding:1px 6px; border-radius:5px;
   }
   .win-open{ background:#E4EFE1; color:#3E6B3A; }
   .win-soon{ background:#FBF0EA; color:var(--rust); }
@@ -260,11 +260,11 @@
   .ts-card.closed{ background:#FBF7F0; }
   .ts-closed-line{ display:flex; align-items:center; gap:8px; }
   .closed-flag{ font-size:15px; }
-  .closed-text{ font-size:13.5px; font-weight:600; color:var(--rust); }
+  .closed-text{ font-size:14px; font-weight:600; color:var(--rust); }
   .ts-notice-line{ display:flex; align-items:center; gap:8px; margin-top:4px; }
   .ts-notice-inline{ display:inline-flex; align-items:center; gap:4px; }
   .notice-flag{ font-size:15px; }
-  .notice-text{ font-size:13.5px; font-weight:600; color:var(--brass); }
+  .notice-text{ font-size:14px; font-weight:600; color:var(--brass); }
   .ts-closed-toggle-label{
     flex-shrink:0; font-family:'Inter',sans-serif; font-size:12px; font-weight:600; color:#a3a293;
     padding:8px 12px; border:1.5px dashed #d8d4c4; border-radius:20px;
@@ -275,14 +275,14 @@
   }
   .ts-closure-row:last-of-type{ border-bottom:none; }
   .ts-closure-date{ color:var(--ink); flex-shrink:0; }
-  .ts-closure-status{ font-size:11.5px; color:#8b8a7c; flex:1; text-align:right; margin-right:6px; }
+  .ts-closure-status{ font-size:12px; color:#8b8a7c; flex:1; text-align:right; margin-right:6px; }
   .ts-closure-status.closed{ color:var(--rust); font-weight:600; }
   .ts-closure-row button{
     font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:var(--fairway);
     background:#fff; border:1px solid var(--fairway); border-radius:14px; padding:3px 10px; cursor:pointer; flex-shrink:0;
   }
   .ts-signup-select{
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; padding:8px 10px;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; padding:8px 10px;
     border-radius:20px; border:1.5px solid var(--fairway); background:#fff; color:var(--fairway); cursor:pointer;
     transition:all .12s ease;
   }
@@ -290,7 +290,7 @@
   .ts-signup-select.standby{ background:var(--brass); border-color:var(--brass); color:var(--ivory); }
   .ts-standby-count{ color:var(--brass); font-weight:600; }
   .ts-chip-group-label{
-    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.06em; text-transform:uppercase;
+    font-family:'Inter',sans-serif; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
     color:var(--sage); margin:6px 0 4px;
   }
   .ts-chip-group-label:first-child{ margin-top:0; }
@@ -298,20 +298,20 @@
   .ts-teams-block{ margin-top:12px; padding-top:10px; border-top:1px dashed var(--ivory-line); }
   .ts-team-row{ margin-bottom:8px; }
   .ts-team-num{
-    display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:.06em;
+    display:block; font-family:'Inter',sans-serif; font-size:11px; letter-spacing:.06em;
     text-transform:uppercase; color:var(--fairway); margin-bottom:4px;
   }
-  .ts-team-so{ color:#8b8a7c; font-size:10.5px; }
-  .ts-score-table{ border-collapse:collapse; font-family:'IBM Plex Mono',monospace; }
+  .ts-team-so{ color:#8b8a7c; font-size:11px; }
+  .ts-score-table{ border-collapse:collapse; font-family:'Inter',sans-serif; }
   .ts-score-table th, .ts-score-table td{ text-align:center; padding:3px 2px; }
-  .ts-score-table thead th{ font-size:10px; font-weight:600; color:#8b8a7c; }
-  .ts-score-table td.ts-score-name, .ts-score-table th:first-child{ text-align:left; padding-right:10px; white-space:nowrap; font-family:'Inter',sans-serif; font-size:12.5px; }
+  .ts-score-table thead th{ font-size:11px; font-weight:600; color:#8b8a7c; }
+  .ts-score-table td.ts-score-name, .ts-score-table th:first-child{ text-align:left; padding-right:10px; white-space:nowrap; font-family:'Inter',sans-serif; font-size:13px; }
   .ts-score-input{
-    width:30px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-align:center;
+    width:30px; font-family:'Inter',sans-serif; font-size:13px; text-align:center;
     padding:4px 2px; border-radius:5px; border:1px solid var(--ivory-line);
   }
   .ts-score-display{
-    display:inline-block; width:30px; font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    display:inline-block; width:30px; font-family:'Inter',sans-serif; font-size:13px;
     text-align:center; padding:4px 2px; border-radius:5px; border:1px solid transparent; color:var(--ink);
   }
   .ts-score-input-lg{
@@ -363,7 +363,7 @@
     .ts-score-table td.ts-score-name, .ts-score-table th:first-child{ padding-right:6px; }
     .ts-score-table .ts-score-display{ width:27px; }
   }
-  .ts-hbh-player-note{ font-size:11.5px; color:#8b8a7c; }
+  .ts-hbh-player-note{ font-size:12px; color:#8b8a7c; }
   /* "Saving…" next to a player's name while their hole score is being sent. */
   .ts-hbh-saving{
     display:none; align-items:center; gap:6px; margin-left:10px; vertical-align:middle;
@@ -386,7 +386,7 @@
   .ts-big-controls .ts-hbh-row > div:first-child{ flex:1 1 100%; }
   .ts-big-controls .ts-hbh-controls{ flex:1 1 100%; justify-content:center; gap:16px; }
   .ts-size-toggle{
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; color:var(--fairway);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--fairway);
     background:#fff; border:1px solid var(--ivory-line); border-radius:8px; padding:8px 12px; cursor:pointer;
   }
   .ts-size-toggle.active{ background:var(--brass); border-color:var(--brass); color:var(--fairway-dark); }
@@ -406,7 +406,7 @@
   /* Money Status (Scoring & Bets › Money Status) */
   .ts-money-pending-row{
     display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
-    padding:9px 0; border-bottom:1px solid var(--ivory-line); font-size:12.5px;
+    padding:9px 0; border-bottom:1px solid var(--ivory-line); font-size:13px;
   }
   .ts-money-pending-row:last-child{ border-bottom:none; }
   .ts-money-pending-actions{ display:flex; gap:6px; flex-shrink:0; }
@@ -433,16 +433,16 @@
      with a Front 9 / Back 9 divider, meant to be printed and taken to the
      course. Its own class (not .ts-score-table) since the column divider
      falls after hole 9 here instead of after every 6-hole series. */
-  .ts-scorecard-table{ border-collapse:collapse; font-family:'IBM Plex Mono',monospace; width:100%; }
+  .ts-scorecard-table{ border-collapse:collapse; font-family:'Inter',sans-serif; width:100%; }
   .ts-scorecard-table th, .ts-scorecard-table td{ text-align:center; padding:5px 3px; border-bottom:1px solid var(--ivory-line); }
-  .ts-scorecard-table thead th{ font-size:10px; font-weight:600; color:#8b8a7c; }
-  .ts-scorecard-table thead tr:first-child th{ font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--fairway); padding-bottom:4px; }
-  .ts-scorecard-table td.ts-score-name, .ts-scorecard-table th:first-child{ text-align:left; padding-right:10px; white-space:nowrap; font-family:'Inter',sans-serif; font-size:12.5px; }
+  .ts-scorecard-table thead th{ font-size:11px; font-weight:600; color:#8b8a7c; }
+  .ts-scorecard-table thead tr:first-child th{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--fairway); padding-bottom:4px; }
+  .ts-scorecard-table td.ts-score-name, .ts-scorecard-table th:first-child{ text-align:left; padding-right:10px; white-space:nowrap; font-family:'Inter',sans-serif; font-size:13px; }
   .ts-scorecard-table th:nth-child(11), .ts-scorecard-table td:nth-child(11){ border-left:2px solid var(--ivory-line); }
   .ts-scorecard-table td.ts-scorecard-blank{ min-width:22px; height:22px; }
   .ts-scorecard-table td.ts-score-stroke{ background:#FBF3E4; }
   .ts-scorecard-table tr.ts-par-row th{ color:var(--ink); font-weight:700; border-top:1px solid var(--ivory-line); }
-  .ts-scorecard-table tr.ts-scorecard-hybrid-row td{ font-size:9.5px; color:#8b8a7c; font-style:italic; padding-top:0; border-bottom:1px dashed var(--ivory-line); }
+  .ts-scorecard-table tr.ts-scorecard-hybrid-row td{ font-size:11px; color:#8b8a7c; font-style:italic; padding-top:0; border-bottom:1px dashed var(--ivory-line); }
   .ts-scorecard-table tr.ts-scorecard-hybrid-row td:first-child{ font-family:'Inter',sans-serif; }
   /* Keep the name column visible while scrolling horizontally through 18
      holes — the table's own background must be opaque (matching the white
@@ -486,7 +486,7 @@
   .ts-score-unsaved{ border-color:var(--rust) !important; background:#FBEAE6 !important; color:var(--rust) !important; font-style:normal !important; }
   .ts-unsaved-banner{
     margin:8px 0; padding:8px 10px; border-radius:8px; background:#FBEAE6; color:var(--rust);
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; text-align:center;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600; text-align:center;
   }
   .ts-unsaved-dot{
     position:absolute; top:3px; left:4px; width:6px; height:6px; border-radius:50%;
@@ -494,29 +494,29 @@
   }
   .ts-unsaved-retry{
     margin-top:4px; background:none; border:none; padding:0; cursor:pointer;
-    font-family:'Inter',sans-serif; font-size:11.5px; font-weight:700; color:var(--rust); text-decoration:underline;
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:700; color:var(--rust); text-decoration:underline;
   }
   .ts-accept-scores-btn{
     background:var(--fairway); color:var(--ivory); border:none; border-radius:9px;
-    padding:11px 18px; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:700;
+    padding:11px 18px; font-family:'Inter',sans-serif; font-size:14px; font-weight:700;
     cursor:pointer; width:100%; max-width:360px;
   }
   .ts-accept-scores-btn:active{ background:var(--fairway-dark); }
   .ts-accept-scores-btn:disabled{ background:#c7c4b6; color:#fff; cursor:not-allowed; }
   .ts-hh-row{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .ts-hh-cell{ display:flex; flex-direction:column; align-items:center; gap:2px; width:38px; }
-  .ts-hh-cell label{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8b8a7c; }
+  .ts-hh-cell label{ font-family:'Inter',sans-serif; font-size:11px; color:#8b8a7c; }
   .ts-hh-cell input{
-    width:34px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; text-align:center;
+    width:34px; font-family:'Inter',sans-serif; font-size:13px; text-align:center;
     padding:4px 2px; border-radius:5px; border:1px solid var(--ivory-line);
   }
-  .ts-bet-row{ display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid var(--ivory-line); font-size:12.5px; }
+  .ts-bet-row{ display:flex; justify-content:space-between; gap:10px; padding:5px 0; border-bottom:1px solid var(--ivory-line); font-size:13px; }
   .ts-bet-row:last-child{ border-bottom:none; }
   .ts-bet-row .ts-bet-label{ color:var(--ink); }
-  .ts-bet-row .ts-bet-result{ font-family:'IBM Plex Mono',monospace; color:#6b6a5e; white-space:nowrap; }
+  .ts-bet-row .ts-bet-result{ font-family:'Inter',sans-serif; color:#6b6a5e; white-space:nowrap; }
   .ts-holes-group{ display:flex; gap:4px; }
   .ts-holes-pill{
-    font-family:'IBM Plex Mono',monospace; font-size:10px; color:#8b8a7c; background:#fff;
+    font-family:'Inter',sans-serif; font-size:11px; color:#8b8a7c; background:#fff;
     border:1px solid var(--ivory-line); border-radius:12px; padding:3px 8px; cursor:pointer;
   }
   .ts-holes-pill.active{ color:var(--brass); background:#FBF3E4; border-color:#EAD6A8; font-weight:600; }
@@ -526,7 +526,7 @@
   }
 
   .ts-players{
-    padding:0 15px 14px 81px; font-size:12.5px; color:#6b6a5e; line-height:1.6; display:none;
+    padding:0 15px 14px 81px; font-size:13px; color:#6b6a5e; line-height:1.6; display:none;
   }
   .ts-players.open{ display:block; }
   .ts-players .name-chip{
@@ -535,10 +535,10 @@
   }
   .ts-players .name-chip.me{ border-color:var(--brass); background:#FBF3E4; font-weight:600; color:#7A5A20; }
   .ts-players .name-chip .holes-badge{
-    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--rust); margin-left:4px;
+    font-family:'Inter',sans-serif; font-size:11px; color:var(--rust); margin-left:4px;
   }
   .ts-guest-badge{
-    font-family:'Inter',sans-serif; font-size:9.5px; font-weight:700; text-transform:uppercase;
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:700; text-transform:uppercase;
     letter-spacing:.03em; color:var(--brass); background:#FBF3E4; border-radius:6px; padding:1px 5px; margin-left:4px;
   }
   .ts-admin-toggle-label{
@@ -561,7 +561,7 @@
 
   .ts-booking-alert{
     display:flex; gap:9px; align-items:flex-start; background:#FBF0EA; border:1px solid #EBCFC1;
-    border-left:3px solid var(--rust); border-radius:8px; padding:10px 12px; font-size:12.5px; line-height:1.5;
+    border-left:3px solid var(--rust); border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.5;
     margin:2px 0 10px;
   }
   .ts-booking-alert b{ font-weight:600; }
@@ -574,13 +574,13 @@
   .ts-roster-panel h4{ font-family:'Fraunces',serif; font-size:15px; margin:0 0 10px; }
   .ts-roster-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
   .ts-roster-row input{
-    flex:1; min-width:110px; font-family:'Inter'; font-size:13.5px; padding:7px 10px; border-radius:7px; border:1px solid var(--ivory-line);
+    flex:1; min-width:110px; font-family:'Inter'; font-size:14px; padding:7px 10px; border-radius:7px; border:1px solid var(--ivory-line);
   }
   .ts-roster-row button{
     background:none; border:none; color:var(--rust); cursor:pointer; font-size:13px; padding:4px 8px;
   }
   .ts-pin-status{
-    font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:#a3a293; flex-shrink:0; white-space:nowrap;
+    font-family:'Inter',sans-serif; font-size:11px; color:#a3a293; flex-shrink:0; white-space:nowrap;
   }
   .ts-pin-status.set{ color:var(--fairway); font-weight:600; }
   /* League Roster rows: two fixed-column lines per person, so names/emails/pin status
@@ -590,7 +590,7 @@
   .ts-player-row:last-of-type{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
   .ts-player-row-top{ display:grid; grid-template-columns:1fr 1fr 56px; gap:10px; align-items:center; margin-bottom:6px; }
   .ts-player-row-top input{
-    width:100%; font-family:'Inter'; font-size:13.5px; padding:7px 10px; border-radius:7px; border:1px solid var(--ivory-line);
+    width:100%; font-family:'Inter'; font-size:14px; padding:7px 10px; border-radius:7px; border:1px solid var(--ivory-line);
   }
   .ts-player-row-guest-col{ display:flex; justify-content:center; }
   .ts-player-row-bottom{ display:grid; grid-template-columns:auto 150px 150px; gap:12px; align-items:center; }
@@ -605,7 +605,7 @@
   }
   .ts-add-row{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
   .ts-add-row input{
-    flex:1; min-width:110px; font-family:'Inter'; font-size:13.5px; padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line);
+    flex:1; min-width:110px; font-family:'Inter'; font-size:14px; padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line);
   }
   .ts-add-row button{
     background:var(--fairway); color:var(--ivory); border:none; padding:8px 14px; border-radius:7px;
@@ -624,14 +624,14 @@
   .ts-import-row p{ font-size:12px; color:#8b8a7c; margin:6px 0 0; line-height:1.5; }
   /* Admin > Reminders > Email wording */
   .ts-ew-group{ border:1px solid var(--ivory-line); border-radius:8px; padding:12px 14px; margin-top:12px; background:#fff; }
-  .ts-ew-group h5{ margin:0 0 4px; font-family:'Inter',sans-serif; font-size:13.5px; color:var(--fairway); }
-  .ts-ew-field{ display:block; margin-top:10px; font-size:12.5px; font-weight:600; color:var(--ink); }
+  .ts-ew-group h5{ margin:0 0 4px; font-family:'Inter',sans-serif; font-size:14px; color:var(--fairway); }
+  .ts-ew-field{ display:block; margin-top:10px; font-size:13px; font-weight:600; color:var(--ink); }
   .ts-ew-field input, .ts-ew-field textarea{
-    display:block; width:100%; box-sizing:border-box; margin-top:4px; font-family:'Inter',sans-serif; font-size:13.5px; font-weight:400;
+    display:block; width:100%; box-sizing:border-box; margin-top:4px; font-family:'Inter',sans-serif; font-size:14px; font-weight:400;
     padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line); resize:vertical; color:var(--ink); line-height:1.45;
   }
   .ts-ew-words{ margin-top:10px; font-size:12px; color:#6b6a5e; line-height:1.6; }
-  .ts-ew-words code{ font-family:'IBM Plex Mono',monospace; font-size:11.5px; background:var(--ivory); padding:1px 4px; border-radius:4px; color:var(--fairway); }
+  .ts-ew-words code{ font-family:'Inter',sans-serif; font-size:12px; background:var(--ivory); padding:1px 4px; border-radius:4px; color:var(--fairway); }
   .ts-ew-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
   .ts-ew-actions button.ts-ew-save{ background:var(--fairway); color:var(--ivory); }
   /* "Swap players between teams" grid (see swapPlayersTableHtml) — a header
@@ -640,13 +640,13 @@
   .ts-assign-grid{ display:grid; column-gap:6px; row-gap:0; align-items:stretch; }
   .ts-assign-head{
     display:flex; align-items:flex-end; justify-content:center; text-align:center;
-    font-family:'Inter',sans-serif; font-size:10px; font-weight:700; color:#8b8a7c;
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:700; color:#8b8a7c;
     text-transform:uppercase; letter-spacing:.01em; line-height:1.25;
     padding-bottom:7px; border-bottom:2px solid var(--ivory-line);
   }
   .ts-assign-name{
     display:flex; align-items:center;
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600;
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
     padding:8px 0; border-bottom:1px solid var(--ivory-line);
   }
   .ts-assign-radio-cell{
@@ -672,7 +672,7 @@
     font-size:12px; color:#8b8a7c; margin-top:10px; line-height:1.5; border-top:1px dashed var(--ivory-line); padding-top:10px;
   }
   .ts-locked-panel{
-    text-align:center; padding:22px; color:#6b6a5e; font-size:13.5px;
+    text-align:center; padding:22px; color:#6b6a5e; font-size:14px;
   }
   .ts-locked-panel button{
     margin-top:10px; background:var(--fairway); color:var(--ivory); border:none; padding:8px 16px; border-radius:7px;
@@ -688,12 +688,13 @@
   .ts-swap-grid{ display:grid; grid-template-columns:minmax(120px, 200px) minmax(0, 1fr); column-gap:16px; align-items:center; }
   .ts-swap-grid > div{ padding:8px 0; border-bottom:1px solid var(--ivory-line); }
   .ts-swap-head{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6b6a5e; }
+  .ts-swap-head-ask{ text-transform:none; letter-spacing:0; font-size:13px; color:var(--fairway); }
   .ts-swap-date b{ display:block; font-size:15px; }
   .ts-swap-date span{ font-size:12px; color:#6b6a5e; }
   .ts-swap-grid select{ width:100%; max-width:420px; font-family:'Inter'; font-size:14px; padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line); }
   .ts-swap-actions{ display:flex; align-items:center; gap:14px; margin-top:12px; }
   .ts-swap-send{ background:var(--fairway); color:#fff; border:none; border-radius:7px; padding:10px 18px; font-family:'Inter'; font-size:14px; font-weight:600; cursor:pointer; }
-  @media (max-width:560px){ .ts-swap-grid{ grid-template-columns:minmax(0,1fr); } .ts-swap-grid > div:nth-child(2){ display:none; } .ts-swap-date{ border-bottom:none !important; padding-bottom:2px !important; } }
+  @media (max-width:560px){ .ts-swap-grid{ grid-template-columns:minmax(0,1fr); } .ts-swap-grid > div:nth-child(1){ padding-bottom:0; border-bottom:none; } .ts-swap-date{ border-bottom:none !important; padding-bottom:2px !important; } }
   .ts-link-btn{ background:none; border:none; padding:0; text-decoration:underline; color:var(--fairway); cursor:pointer; font-family:'Inter'; font-size:13px; }
   .ts-duty-sort-btn{
     font-family:'Inter',sans-serif; font-size:12px; font-weight:500; color:#6b6a5e;
@@ -702,7 +703,7 @@
   .ts-duty-sort-btn.active{ background:var(--fairway); color:var(--ivory); border-color:var(--fairway); font-weight:600; }
   .ts-duty-sort-btn.subtle-active{ background:#E4EFE1; color:#3E6B3A; border-color:#C9DDC5; }
   #ts-duty-filter{
-    font-family:'Inter',sans-serif; font-size:12.5px; padding:6px 10px; border-radius:7px;
+    font-family:'Inter',sans-serif; font-size:13px; padding:6px 10px; border-radius:7px;
     border:1px solid var(--ivory-line); background:#fff; color:var(--ink);
   }
   .ts-duty-panel{ margin-top:16px; }
@@ -717,10 +718,10 @@
   .ts-cal-cell .ts-card{ margin-bottom:0; }
   .ts-cal-blank{ visibility:hidden; }
   .ts-duty-cal-entry{
-    font-family:'Inter',sans-serif; font-size:12.5px; padding:10px 12px; background:#fff;
+    font-family:'Inter',sans-serif; font-size:13px; padding:10px 12px; background:#fff;
     border:1px solid var(--ivory-line); border-radius:8px;
   }
-  .ts-duty-cal-date{ font-family:'IBM Plex Mono',monospace; color:#8b8a7c; }
+  .ts-duty-cal-date{ font-family:'Inter',sans-serif; color:#8b8a7c; }
   .ts-duty-cal-name{ font-weight:600; color:var(--ink); }
   .ts-duty-cal-entry.closed{ text-decoration:line-through; opacity:.6; }
   .ts-grid-disclaimer{ font-size:12px; color:#8b8a7c; font-style:italic; margin:10px 0 0; }
@@ -730,8 +731,8 @@
     border:1px solid var(--ivory-line); padding:5px 8px; white-space:nowrap; text-align:left;
   }
   .ts-grid-table thead th{
-    background:var(--fairway); color:var(--ivory); font-family:'IBM Plex Mono',monospace;
-    font-size:10.5px; letter-spacing:.04em; text-transform:uppercase; position:sticky; top:0;
+    background:var(--fairway); color:var(--ivory); font-family:'Inter',sans-serif;
+    font-size:11px; letter-spacing:.04em; text-transform:uppercase; position:sticky; top:0;
   }
   /* Date column stays put while the rest of the grid scrolls horizontally —
      both the header cell and every row's date cell need their own
@@ -742,7 +743,7 @@
      needs the higher z-index to stay above everything else in both axes. */
   .ts-grid-date, .ts-grid-date-head{ position:sticky; left:0; z-index:1; }
   .ts-grid-date-head{ z-index:3; }
-  .ts-grid-date{ font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink); background:#FBFAF5; }
+  .ts-grid-date{ font-family:'Inter',sans-serif; font-size:11px; color:var(--ink); background:#FBFAF5; }
   .ts-grid-closed{ color:var(--rust); font-style:italic; text-align:center; }
   @media (max-width:640px){
     .ts-cal-grid{ grid-template-columns:1fr; }
@@ -768,29 +769,29 @@
   .ts-duty-row .ts-date-block{ border-right:1px dashed var(--ivory-line); padding-right:12px; }
   .ts-duty-row-mid{ flex:1; min-width:0; }
   .ts-duty-row-mid select{
-    font-family:'Inter',sans-serif; font-size:13.5px; padding:6px 9px; border-radius:7px;
+    font-family:'Inter',sans-serif; font-size:14px; padding:6px 9px; border-radius:7px;
     border:1px solid var(--ivory-line); background:var(--ivory); color:var(--ink); min-width:160px;
   }
-  .ts-duty-row-sub{ font-size:11.5px; color:#8b8a7c; margin-top:5px; }
+  .ts-duty-row-sub{ font-size:12px; color:#8b8a7c; margin-top:5px; }
   .ts-confirm-row{ display:flex; align-items:center; gap:6px; }
   .ts-confirm-row input{
-    font-family:'IBM Plex Mono',monospace; font-size:12px; padding:2px 5px; border-radius:5px;
+    font-family:'Inter',sans-serif; font-size:12px; padding:2px 5px; border-radius:5px;
     border:1px solid var(--ivory-line); text-align:center;
   }
   .ts-swap-btn{
     font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:var(--fairway);
     background:#fff; border:1px solid var(--fairway); border-radius:14px; padding:3px 10px; cursor:pointer;
   }
-  .ts-swap-pending{ font-size:11.5px; color:#8b8a7c; }
+  .ts-swap-pending{ font-size:12px; color:#8b8a7c; }
   .ts-swap-pending button{
     font-family:'Inter',sans-serif; font-size:11px; color:var(--rust); background:none; border:none;
     text-decoration:underline; cursor:pointer; padding:0 0 0 6px;
   }
 
   .ts-footer-note{
-    text-align:center; font-size:11.5px; color:#a3a293; margin-top:34px; line-height:1.6;
+    text-align:center; font-size:12px; color:#a3a293; margin-top:34px; line-height:1.6;
   }
-  .ts-loading{ text-align:center; padding:60px 20px; color:#8b8a7c; font-family:'IBM Plex Mono',monospace; font-size:13px; }
+  .ts-loading{ text-align:center; padding:60px 20px; color:#8b8a7c; font-family:'Inter',sans-serif; font-size:13px; }
 
   .ts-busy{
     position:fixed; top:12px; left:50%; transform:translate(-50%, -8px); z-index:900;
@@ -817,7 +818,7 @@
     box-shadow:0 20px 50px rgba(0,0,0,0.25);
   }
   .ts-modal-box h4{ font-family:'Fraunces',serif; font-size:16px; margin:0 0 8px; }
-  .ts-modal-box p{ font-size:13.5px; color:#4a4a40; line-height:1.5; margin:0 0 14px; }
+  .ts-modal-box p{ font-size:14px; color:#4a4a40; line-height:1.5; margin:0 0 14px; }
   .ts-modal-box input{
     width:100%; font-family:'Inter'; font-size:14px; padding:9px 11px; border-radius:7px;
     border:1px solid var(--ivory-line); margin-bottom:14px;
@@ -826,6 +827,8 @@
     width:100%; font-family:'Inter'; font-size:14px; padding:9px 11px; border-radius:7px;
     border:1px solid var(--ivory-line); margin-bottom:14px; background:#fff; color:var(--ink);
   }
+  .ts-modal-box{ font-family:'Inter',sans-serif; }
+  .ts-modal-label{ display:block; font-size:12px; font-weight:600; color:#6b6a5e; margin:0 0 4px; }
   .ts-modal-actions{ display:flex; gap:8px; justify-content:flex-end; }
   .ts-modal-actions button{
     font-family:'Inter'; font-size:13px; font-weight:600; padding:8px 16px; border-radius:7px; cursor:pointer; border:none;
@@ -845,10 +848,10 @@
     padding:8px 14px; border-bottom:1px dashed var(--ivory-line);
   }
   .ts-reconcile-row:last-child{ border-bottom:none; }
-  .ts-reconcile-label{ font-size:12.5px; color:var(--ink); flex:1; min-width:160px; }
+  .ts-reconcile-label{ font-size:13px; color:var(--ink); flex:1; min-width:160px; }
   .ts-reconcile-choices{ display:flex; gap:6px; flex-shrink:0; }
   .ts-reconcile-choice{
-    font-family:'Inter',sans-serif; font-size:11.5px; padding:5px 10px; border-radius:14px;
+    font-family:'Inter',sans-serif; font-size:12px; padding:5px 10px; border-radius:14px;
     border:1px solid var(--ivory-line); background:#fff; color:#6b6a5e; cursor:pointer;
   }
   .ts-reconcile-choice.selected{ background:var(--fairway); color:var(--ivory); border-color:var(--fairway); font-weight:600; }
@@ -859,10 +862,10 @@
   }
   .ts-reconcile-bulk button:hover{ border-color:var(--brass); color:var(--brass); }
   .ts-modal-box textarea{
-    width:100%; height:140px; font-family:'IBM Plex Mono',monospace; font-size:11px; padding:9px 11px;
+    width:100%; height:140px; font-family:'Inter',sans-serif; font-size:11px; padding:9px 11px;
     border-radius:7px; border:1px solid var(--ivory-line); margin-bottom:6px; resize:vertical; color:var(--ink);
   }
-  .ts-copy-status{ font-size:11.5px; color:var(--sage); margin:0 0 10px; min-height:14px; }
+  .ts-copy-status{ font-size:12px; color:var(--sage); margin:0 0 10px; min-height:14px; }
 
   .ts-print-btn{
     font-family:'Inter',sans-serif; font-size:12px; font-weight:600; color:var(--fairway);
@@ -890,6 +893,15 @@
     select{ appearance:none; -webkit-appearance:none; border:none; background:none; font-weight:600; }
     .ts-duty-controls{ display:none !important; }
   }
+
+  /* Type system (Oct 24): one sans font (Inter) for everything except the
+     panel titles, which keep the Fraunces serif. Panel title 19px serif >
+     section heading 15px semibold > body 14px > notes 13px > labels 11-12px. */
+  body{ font-variant-numeric:tabular-nums; }
+  .ts-roster-panel h4{ font-family:'Inter',sans-serif; font-size:15px; font-weight:600; color:var(--ink); }
+  .ts-roster-panel > h4, .ts-roster-panel > .ts-section-title-row > h4{ font-family:'Fraunces',serif; font-size:19px; font-weight:600; color:var(--fairway-dark); }
+  .ts-swap-section h4{ font-family:'Inter',sans-serif; font-size:15px; font-weight:600; }
+  .ts-note, .ts-roster-panel .ts-note{ font-size:13px; line-height:1.5; }
 </style>
 
 <div id="tee-sheet-root">
@@ -951,7 +963,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.24.3';
+  const APP_VERSION = '2026.10.24.5';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1791,8 +1803,8 @@
         <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <button type="button" class="ts-comms-btn" id="ts-comms-post">Post topic</button>
           ${canEmail
-            ? `<label style="font-size:12.5px; color:#6b6a5e; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="ts-comms-email-pref" ${emailOn ? 'checked' : ''}> Email me about new topics</label>`
-            : `<span style="font-size:12.5px; color:#6b6a5e;">No email address on file for you — ask an admin to add one if you want emails about new topics.</span>`}
+            ? `<label style="font-size:13px; color:#6b6a5e; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="ts-comms-email-pref" ${emailOn ? 'checked' : ''}> Email me about new topics</label>`
+            : `<span style="font-size:13px; color:#6b6a5e;">No email address on file for you — ask an admin to add one if you want emails about new topics.</span>`}
         </div>
       </div>
       ${commsLoaded ? (threadHtml || '<p style="font-size:14px; color:#6b6a5e; padding:6px 4px;">No topics yet — be the first to post.</p>') : '<p style="font-size:14px; color:#6b6a5e; padding:6px 4px;">Loading messages…</p>'}`;
@@ -2564,6 +2576,50 @@
         if(e.key === 'Escape') cleanup(null);
       });
     });
+  }
+
+  // "My info" (top right): a player updates their own email and default tee.
+  // Their name stays with the admin, since it's what everything else matches on.
+  function openMyInfo(){
+    const me = data.roster.find(p => p.id === meId);
+    if(!me) return;
+    const modalRoot = document.getElementById('ts-modal-root');
+    modalRoot.innerHTML = `
+      <div class="ts-modal-overlay" id="ts-modal-overlay">
+        <div class="ts-modal-box">
+          <h4>My info</h4>
+          <p><b>${esc(me.name)}</b><br><span style="font-size:13px; color:#6b6a5e;">To change your name, ask the league admin.</span></p>
+          <label class="ts-modal-label" for="ts-myinfo-email">Email</label>
+          <input type="email" id="ts-myinfo-email" value="${esc(me.email || '')}" placeholder="you@example.com">
+          ${data.teeOptions.length ? `
+          <label class="ts-modal-label" for="ts-myinfo-tee">Default tee</label>
+          <select id="ts-myinfo-tee">
+            <option value="">Not set</option>
+            ${data.teeOptions.map(tee => `<option value="${esc(tee)}" ${me.defaultTee===tee?'selected':''}>${esc(tee)}</option>`).join('')}
+          </select>` : ''}
+          <div class="ts-modal-actions">
+            <button class="ts-modal-cancel" id="ts-modal-cancel">Cancel</button>
+            <button class="ts-modal-ok" id="ts-modal-ok">Save</button>
+          </div>
+        </div>
+      </div>`;
+    const close = () => { modalRoot.innerHTML = ''; };
+    document.getElementById('ts-modal-cancel').onclick = close;
+    document.getElementById('ts-modal-overlay').addEventListener('click', (e) => { if(e.target.id === 'ts-modal-overlay') close(); });
+    document.getElementById('ts-modal-ok').onclick = async () => {
+      const email = document.getElementById('ts-myinfo-email').value.trim();
+      const teeSel = document.getElementById('ts-myinfo-tee');
+      if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        close();
+        await showMessage('Check your email address', 'That doesn\'t look like an email address. Try again from My info.');
+        return;
+      }
+      close();
+      if(email){ me.email = email; } else { delete me.email; }
+      if(teeSel){ if(teeSel.value){ me.defaultTee = teeSel.value; } else { delete me.defaultTee; } }
+      await saveData();
+      render();
+    };
   }
 
   function showMessage(title, message){
@@ -3540,7 +3596,7 @@ function computedCourseHandicap(indexVal, tee){
           <span class="ts-import-row-label" style="margin:0;">Scorecards — ${esc(dateLabel)}</span>
           <button type="button" class="ts-print-btn" id="ts-print-scorecards">🖨️ Print scorecards</button>
         </div>
-        <p style="margin:0 0 10px; font-size:12.5px; color:#6b6a5e;">One card per team, ready to print and take out — the tinted box marks which holes each player gets a stroke on.${hybridLegendHtml} Doesn't feed Live Scoring; scores still only count once entered there.</p>
+        <p style="margin:0 0 10px; font-size:13px; color:#6b6a5e;">One card per team, ready to print and take out — the tinted box marks which holes each player gets a stroke on.${hybridLegendHtml} Doesn't feed Live Scoring; scores still only count once entered there.</p>
         ${teamTables}
       </div>`;
   }
@@ -3614,7 +3670,7 @@ function computedCourseHandicap(indexVal, tee){
     const teeTimesInputVal = (typeof overrideCount === 'number' && overrideCount > 0) ? overrideCount : (confirmedCount || suggestedFromPlayers);
     return `
       <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Number of tee times${nextDateLabel ? ` — ${esc(nextDateLabel)}` : ''}
-        <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:50px; margin-left:6px; font-family:'IBM Plex Mono',monospace; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--ivory-line);">
+        <input type="number" min="1" max="${MAX_TEE_TIMES}" step="1" id="ts-teams-teetimes-override" data-teetimes-date="${nextKey}" value="${teeTimesInputVal}" placeholder="${confirmedCount || '—'}" style="width:50px; margin-left:6px; font-family:'Inter',sans-serif; font-size:13px; padding:6px 8px; border-radius:7px; border:1px solid var(--ivory-line);">
       </label>
       <span style="font-size:12px; color:#6b6a5e;">${confirmedPlayers} player${confirmedPlayers===1?'':'s'} confirmed</span>`;
   }
@@ -4941,6 +4997,7 @@ function computedCourseHandicap(indexVal, tee){
         ${loginRequired ? `
         <div class="ts-topbar">
           <span>Signed in as <strong>${me ? esc(me.name) : (isAdmin ? 'League admin' : 'Guest')}</strong></span>
+          ${me ? `<button class="ts-topbar-link" id="ts-my-info">My info</button>` : ''}
           ${me ? `<button class="ts-topbar-link" id="ts-set-pin">${meHasPin ? 'Change PIN' : 'Set PIN'}</button>` : ''}
           <button class="ts-topbar-link" id="ts-sign-out">Sign out</button>
           <button class="ts-admin-pill ${isAdmin?'on':''}" id="ts-admin-pill" title="${isAdmin ? 'Admin unlocked — tap to lock' : 'Admin'}">${isAdmin ? '🔓 Admin' : '🔒'}</button>
@@ -5419,7 +5476,7 @@ function computedCourseHandicap(indexVal, tee){
         <div class="ts-import-row">
           <span class="ts-import-row-label">Guest PIN</span>
           <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
-            <span style="font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600; letter-spacing:.08em;">${esc(data.guestPin || '—')}</span>
+            <span style="font-family:'Inter',sans-serif; font-size:18px; font-weight:600; letter-spacing:.08em;">${esc(data.guestPin || '—')}</span>
             <button id="ts-change-guest-pin">Change guest PIN</button>
           </div>
           <p>Give this to guests you bring along — anyone who isn't picking their own name off the roster needs it once per device before they can browse.</p>
@@ -5766,7 +5823,7 @@ function computedCourseHandicap(indexVal, tee){
         <div class="ts-import-row ts-ci-section">
           <span class="ts-import-row-label">Require login</span>
           <p style="margin:0 0 10px;">When this is <strong>ON</strong>, the app opens to a sign-in screen: players enter their email address, then their PIN, and no names are shown before that. Guests use the "I'm a guest" link with the guest PIN, and the league admin uses the "League admin" link. Devices already signed in stay signed in until they tap Sign out. It is currently <strong>${loginRequired ? 'ON' : 'OFF'}</strong>.</p>
-          <p style="margin:0 0 10px; font-size:12.5px; color:#6b6a5e;">This is a sign-in screen, not a lock: the roster information is still sent to the browser behind it, so it keeps casual visitors from seeing names but would not stop someone technical. ${(() => { const missing = data.roster.filter(p => !p.isGuest && !p.email); return missing.length ? `<b>${missing.length} player${missing.length === 1 ? ' has' : 's have'} no email on file</b> and could not sign in until you add one in League Roster: ${missing.map(p => esc(p.name)).join(', ')}.` : 'Every player has an email on file.'; })()}</p>
+          <p style="margin:0 0 10px; font-size:13px; color:#6b6a5e;">This is a sign-in screen, not a lock: the roster information is still sent to the browser behind it, so it keeps casual visitors from seeing names but would not stop someone technical. ${(() => { const missing = data.roster.filter(p => !p.isGuest && !p.email); return missing.length ? `<b>${missing.length} player${missing.length === 1 ? ' has' : 's have'} no email on file</b> and could not sign in until you add one in League Roster: ${missing.map(p => esc(p.name)).join(', ')}.` : 'Every player has an email on file.'; })()}</p>
           <button id="ts-login-toggle">${loginRequired ? 'Turn login off' : 'Turn login on'}</button>
         </div>
         <div class="ts-import-row ts-ci-section">
@@ -5841,10 +5898,10 @@ function computedCourseHandicap(indexVal, tee){
     // and stays exactly as-is for team building elsewhere in the app.
     const tableHeaderHtml = `
       <div class="ts-roster-row" style="border-bottom:2px solid var(--ivory-line); padding-bottom:8px; margin-bottom:4px;">
-        <span style="flex:1; min-width:170px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Player</span>
-        <span style="flex:1; min-width:110px; text-align:left; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
-        <span style="width:140px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Tees</span>
-        <span style="width:110px; text-align:right; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
+        <span style="flex:1; min-width:170px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Player</span>
+        <span style="flex:1; min-width:110px; text-align:left; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
+        <span style="width:140px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Tees</span>
+        <span style="width:110px; text-align:right; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
       </div>`;
 
     // Handicap Index edits and the effective date are batched into handicapDraft
@@ -5867,12 +5924,12 @@ function computedCourseHandicap(indexVal, tee){
       return `
         <div class="ts-roster-row" data-hpid="${p.id}">
           <span style="flex:1; min-width:170px;">${playerLabel(p)}</span>
-          <input type="number" step="0.1" min="-10" max="54" data-handicap-index="${p.id}" value="${inputVal}" placeholder="—" style="width:60px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+          <input type="number" step="0.1" min="-10" max="54" data-handicap-index="${p.id}" value="${inputVal}" placeholder="—" style="width:60px; font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
           <select data-default-tee="${p.id}" style="width:140px; font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
             <option value="">No default tee</option>
             ${data.teeOptions.map(tee => `<option value="${esc(tee)}" ${p.defaultTee===tee?'selected':''}>${esc(tee)}</option>`).join('')}
           </select>
-          <span data-hpid-ch="${p.id}" style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
+          <span data-hpid-ch="${p.id}" style="width:110px; font-family:'Inter',sans-serif; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
         </div>`;
     }).join('');
 
@@ -5884,13 +5941,13 @@ function computedCourseHandicap(indexVal, tee){
           <p style="margin:0 0 10px;">Calculate the Heritage course handicap for any index by tee box.</p>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <label style="display:flex; align-items:center; gap:6px; font-size:13px;">Input handicap index
-              <input type="number" step="0.1" min="-10" max="54" id="ts-hcp-calc-index" placeholder="—" style="width:70px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+              <input type="number" step="0.1" min="-10" max="54" id="ts-hcp-calc-index" placeholder="—" style="width:70px; font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
             </label>
             <select id="ts-hcp-calc-tee" style="font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
               <option value="">Select tee</option>
               ${data.teeOptions.map(tee => `<option value="${esc(tee)}">${esc(tee)}</option>`).join('')}
             </select>
-            <span style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600;">Course handicap: <span id="ts-hcp-calc-result">—</span></span>
+            <span style="font-family:'Inter',sans-serif; font-size:13px; font-weight:600;">Course handicap: <span id="ts-hcp-calc-result">—</span></span>
           </div>
         </div>
         <div class="ts-import-row">
@@ -5906,7 +5963,7 @@ function computedCourseHandicap(indexVal, tee){
           <div style="display:flex; align-items:center; gap:10px; margin-top:14px; padding-top:14px; border-top:1px solid var(--ivory-line); flex-wrap:wrap;">
             <button type="button" class="ts-accept-scores-btn" id="ts-save-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Save updated handicaps</button>
             <button type="button" class="ts-manage-btn" id="ts-discard-handicaps-btn"${draftIsDirty ? '' : ' disabled'}>Discard changes</button>
-            <span id="ts-handicap-unsaved-note" style="font-size:12.5px; color:#6b6a5e; ${draftIsDirty ? '' : 'display:none;'}">Unsaved changes</span>
+            <span id="ts-handicap-unsaved-note" style="font-size:13px; color:#6b6a5e; ${draftIsDirty ? '' : 'display:none;'}">Unsaved changes</span>
           </div>
           <div style="margin-top:10px;">
             <button type="button" class="ts-manage-btn" id="ts-preview-handicap-email-btn">Preview / send handicap email</button>
@@ -5947,10 +6004,10 @@ function computedCourseHandicap(indexVal, tee){
 
     const tableHeaderHtml = `
       <div class="ts-roster-row" style="border-bottom:2px solid var(--ivory-line); padding-bottom:8px; margin-bottom:4px;">
-        <span style="flex:1; min-width:170px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Player</span>
-        <span style="width:90px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
-        <span style="width:140px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Tees</span>
-        <span style="width:110px; text-align:right; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
+        <span style="flex:1; min-width:170px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Player</span>
+        <span style="width:90px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Handicap Index</span>
+        <span style="width:140px; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Tees</span>
+        <span style="width:110px; text-align:right; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink);">Course handicap</span>
       </div>`;
 
     const playerRows = sortedRoster().map(p => {
@@ -5958,9 +6015,9 @@ function computedCourseHandicap(indexVal, tee){
       return `
         <div class="ts-roster-row">
           <span style="flex:1; min-width:170px;">${playerLabel(p)}</span>
-          <span style="width:90px; font-family:'IBM Plex Mono',monospace; font-size:12px;">${fmtHI(p.handicapIndex)}</span>
+          <span style="width:90px; font-family:'Inter',sans-serif; font-size:12px;">${fmtHI(p.handicapIndex)}</span>
           <span style="width:140px; font-size:13px;">${p.defaultTee ? esc(p.defaultTee) : '—'}</span>
-          <span style="width:110px; font-family:'IBM Plex Mono',monospace; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
+          <span style="width:110px; font-family:'Inter',sans-serif; font-size:12px; text-align:right;">${courseHcp !== null ? courseHcp : '—'}</span>
         </div>`;
     }).join('');
 
@@ -5975,13 +6032,13 @@ function computedCourseHandicap(indexVal, tee){
           <p style="margin:0 0 10px;">Calculate the Heritage course handicap for any index by tee box.</p>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <label style="display:flex; align-items:center; gap:6px; font-size:13px;">Input handicap index
-              <input type="number" step="0.1" min="-10" max="54" id="ts-hcp-calc-index-pub" placeholder="—" style="width:70px; font-family:'IBM Plex Mono',monospace; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
+              <input type="number" step="0.1" min="-10" max="54" id="ts-hcp-calc-index-pub" placeholder="—" style="width:70px; font-family:'Inter',sans-serif; font-size:12px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line);">
             </label>
             <select id="ts-hcp-calc-tee-pub" style="font-family:'Inter'; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid var(--ivory-line);">
               <option value="">Select tee</option>
               ${data.teeOptions.map(tee => `<option value="${esc(tee)}">${esc(tee)}</option>`).join('')}
             </select>
-            <span style="font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600;">Course handicap: <span id="ts-hcp-calc-result-pub">—</span></span>
+            <span style="font-family:'Inter',sans-serif; font-size:13px; font-weight:600;">Course handicap: <span id="ts-hcp-calc-result-pub">—</span></span>
           </div>
         </div>
         <div class="ts-import-row">
@@ -6430,7 +6487,7 @@ function computedCourseHandicap(indexVal, tee){
     // nowhere further to advance to.
     const hbhUnsaved = unsavedHoleKeys.has(holePostKey(dateKey, hbhHole));
     const unsavedBannerHtml = hbhUnsaved ? `
-      <div class="ts-unsaved-banner">⚠ This hole didn't save yet — it'll retry automatically. <button type="button" class="ts-unsaved-retry" data-retry-unsaved="1" style="color:var(--rust); font-size:12.5px;">Tap to retry now</button></div>` : '';
+      <div class="ts-unsaved-banner">⚠ This hole didn't save yet — it'll retry automatically. <button type="button" class="ts-unsaved-retry" data-retry-unsaved="1" style="color:var(--rust); font-size:13px;">Tap to retry now</button></div>` : '';
 
     const hbhRowsHtml = visibleRoundPlayers.map(hbhRowHtml).join('');
 
@@ -6657,7 +6714,7 @@ function computedCourseHandicap(indexVal, tee){
       <div class="ts-roster-panel">
         <h4 style="margin:0 0 4px;">${reviewing ? `Review — ${esc(dateLabel)}` : 'Set up'}</h4>
         ${reviewing ? `
-        <div class="ts-unsaved-banner">Reviewing ${esc(dateLabel)} — an already-played round, not the upcoming one. <button type="button" id="ts-back-to-current-round" style="color:var(--rust); font-weight:700; font-size:12.5px; text-decoration:underline; background:none; border:none; cursor:pointer;">Back to current round</button></div>
+        <div class="ts-unsaved-banner">Reviewing ${esc(dateLabel)} — an already-played round, not the upcoming one. <button type="button" id="ts-back-to-current-round" style="color:var(--rust); font-weight:700; font-size:13px; text-decoration:underline; background:none; border:none; cursor:pointer;">Back to current round</button></div>
         ` : ''}
         ${reviewPickerHtml}
 
@@ -7150,12 +7207,8 @@ function computedCourseHandicap(indexVal, tee){
     const dayLabel = (dt) => `${DOW_NAMES[dt.getDay()]}, ${MON_NAMES[dt.getMonth()]} ${dt.getDate()}`;
     const swapSectionHtml = myDutyRows.length ? `
       <div class="ts-swap-section">
-        <h4>Swap your booking duty dates</h4>
-        <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">
-          Pick who you'd like to trade with for any or all of your dates; leave the others on "Keep this date". Each person gets an email and must accept before anything changes.
-        </p>
         <div class="ts-swap-grid">
-          <div class="ts-swap-head">My dates</div><div class="ts-swap-head">Request swap with...</div>
+          <div class="ts-swap-head">My dates</div><div class="ts-swap-head ts-swap-head-ask">Click below to ask someone to swap dates with you</div>
           ${(swapShowAllDates ? myDutyRows : myDutyRows.slice(0, 3)).map(r => {
             const outgoing = pendingOutgoingFrom(r.playKey);
             let control;
@@ -7198,13 +7251,9 @@ function computedCourseHandicap(indexVal, tee){
     el.innerHTML = `
       <div class="ts-roster-panel">
         <div class="ts-section-title-row" style="margin:0 0 8px;">
-          <h4 style="margin:0;">Booking Duty — who's heading to the club</h4>
+          <h4 style="margin:0;">My Booking Duty Snapshot</h4>
           <button class="ts-print-btn" id="ts-print-duty">🖨️ Print</button>
         </div>
-        <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">
-          ${isAdmin ? 'Pick who\'s going to the pro shop on each date below.' : 'Who\'s going to the pro shop on each date, and how many tee times to request.'}
-          They'll be requesting tee times for the round two weeks after that date.
-        </p>
         ${incomingHtml}
         ${swapSectionHtml}
         <div class="ts-duty-controls">
@@ -7336,7 +7385,7 @@ function computedCourseHandicap(indexVal, tee){
       ? entries.map(e => `
           <div class="ts-duty-row-sub" style="padding:8px 0; border-bottom:1px solid var(--ivory-line);">
             <div>${lineFor(e)}</div>
-            <div style="font-size:11.5px; color:#8b8a7c; margin-top:2px;">${fmtWhen(e.ts)}</div>
+            <div style="font-size:12px; color:#8b8a7c; margin-top:2px;">${fmtWhen(e.ts)}</div>
           </div>`).join('')
       : `<p class="ts-empty">${showPast ? 'No past activity on file yet.' : 'No signups, drop-outs, or duty swaps affecting an upcoming date yet.'}</p>`;
 
@@ -8333,6 +8382,9 @@ function computedCourseHandicap(indexVal, tee){
       };
     }
 
+    const myInfoBtn = document.getElementById('ts-my-info');
+    if(myInfoBtn) myInfoBtn.onclick = () => openMyInfo();
+
     const setPinBtn = document.getElementById('ts-set-pin');
     if(setPinBtn){
       setPinBtn.onclick = async () => {
@@ -9047,7 +9099,7 @@ function computedCourseHandicap(indexVal, tee){
         ${testBannerHtml()}
         <div class="ts-loading">
           Couldn't load the tee sheet — check your connection.
-          <br><button id="ts-retry-load" style="margin-top:14px; font-family:'Inter'; font-size:13.5px; padding:8px 16px; border-radius:7px; border:1px solid var(--ivory-line); background:#fff; color:var(--rust); cursor:pointer;">Try again</button>
+          <br><button id="ts-retry-load" style="margin-top:14px; font-family:'Inter'; font-size:14px; padding:8px 16px; border-radius:7px; border:1px solid var(--ivory-line); background:#fff; color:var(--rust); cursor:pointer;">Try again</button>
         </div>`;
       const retryBtn = document.getElementById('ts-retry-load');
       if(retryBtn) retryBtn.onclick = () => window.location.reload();
