@@ -683,6 +683,18 @@
     margin-top:14px; padding-top:14px; border-top:1px dashed var(--ivory-line);
   }
   .ts-duty-sort{ display:flex; gap:6px; }
+  .ts-swap-section{ border:1px solid var(--ivory-line); border-radius:10px; padding:14px 16px; margin:0 0 14px; }
+  .ts-swap-section h4{ margin:0 0 6px; }
+  .ts-swap-grid{ display:grid; grid-template-columns:minmax(120px, 200px) minmax(0, 1fr); column-gap:16px; align-items:center; }
+  .ts-swap-grid > div{ padding:8px 0; border-bottom:1px solid var(--ivory-line); }
+  .ts-swap-head{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6b6a5e; }
+  .ts-swap-date b{ display:block; font-size:15px; }
+  .ts-swap-date span{ font-size:12px; color:#6b6a5e; }
+  .ts-swap-grid select{ width:100%; max-width:420px; font-family:'Inter'; font-size:14px; padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line); }
+  .ts-swap-actions{ display:flex; align-items:center; gap:14px; margin-top:12px; }
+  .ts-swap-send{ background:var(--fairway); color:#fff; border:none; border-radius:7px; padding:10px 18px; font-family:'Inter'; font-size:14px; font-weight:600; cursor:pointer; }
+  @media (max-width:560px){ .ts-swap-grid{ grid-template-columns:minmax(0,1fr); } .ts-swap-grid > div:nth-child(2){ display:none; } .ts-swap-date{ border-bottom:none !important; padding-bottom:2px !important; } }
+  .ts-link-btn{ background:none; border:none; padding:0; text-decoration:underline; color:var(--fairway); cursor:pointer; font-family:'Inter'; font-size:13px; }
   .ts-duty-sort-btn{
     font-family:'Inter',sans-serif; font-size:12px; font-weight:500; color:#6b6a5e;
     background:var(--ivory); border:1px solid var(--ivory-line); border-radius:16px; padding:6px 12px; cursor:pointer;
@@ -864,7 +876,7 @@
     .ts-warn-banner, .ts-test-banner, #ts-modal-root, .ts-header::after,
     .ts-whoami, .ts-pin-link, .ts-topbar, .ts-reminders, .ts-tabbar, .ts-footer-note,
     .ts-print-btn, .ts-toggle-wrap, .ts-holes-group, .ts-admin-add, .chip-remove,
-    .ts-duty-sort, #ts-duty-filter, #ts-schedule-filter, .ts-swap-btn, .ts-swap-pending,
+    .ts-duty-sort, #ts-duty-filter, #ts-schedule-filter, .ts-swap-btn, .ts-swap-pending, .ts-swap-section,
     .ts-admin-pill, .ts-add-row, .ts-import-row, #ts-new-name, #ts-add-player, .ts-player-action-select,
     .ts-subtabbar, .ts-accept-teams-wrap {
       display:none !important;
@@ -939,7 +951,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.23.3';
+  const APP_VERSION = '2026.10.24';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1070,6 +1082,18 @@
   // than we need" moment. The app doesn't decide who drops out; it just alerts
   // the admin so the group can work it out. standbyIds is who the app's own
   // signup-order placeholder currently has sitting out, for context only.
+  // Emails the other player that a duty-swap request is waiting for them.
+  async function notifySwapRequest(fromKey, toKey, requesterId, targetId){
+    try{
+      const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=notify_swap_request`;
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ fromKey, toKey, requesterId, targetId })
+      });
+    }catch(e){ /* best-effort */ }
+  }
+
   async function notifyShortfall(dateKey, signedUpCount, confirmedTeeTimes, capacity, standbyIds){
     try{
       const url = `${BACKEND_URL}?key=${encodeURIComponent(BACKEND_KEY)}&action=notify_shortfall`;
@@ -2000,6 +2024,7 @@
     }
     return false;
   }
+  let swapPicks = {}; // Booking Duty swap section: my play-date key -> the play-date key I picked to trade for
   let dutySort = 'date'; // 'date' | 'person'
   let dutyFilterId = ''; // '' = everyone, '__me__' = current identity, or a player id
   let scheduleFilterId = ''; // same idea, for the Upcoming Dates list
@@ -6931,40 +6956,39 @@ function computedCourseHandicap(indexVal, tee){
     return Object.values(data.swapRequests).find(s => s.status === 'pending' && s.fromKey === key);
   }
 
-  async function requestSwap(fromKey, schedule){
+  // Sends one request per date picked in the "Swap your booking duty dates"
+  // section. Each date can have its own request out at once; nothing changes
+  // until the other player accepts.
+  async function sendSwapRequests(){
     if(!meId) return;
-    if(data.closures[fromKey]){
-      await showMessage("This date is closed", "The course is closed for this date, so there's no need to request tee times — nothing to swap.");
+    const picks = Object.entries(swapPicks).filter(([fromKey, toKey]) =>
+      toKey && data.duty[fromKey] === meId && !pendingOutgoingFrom(fromKey));
+    if(picks.length === 0){
+      await showMessage('Nothing to send', 'Pick someone to trade with for at least one of your dates first.');
       return;
     }
-    if(myPendingOutgoing()){
-      await showMessage("You've already got a request out", 'Cancel your pending swap request before starting a new one.');
+    const toKeys = picks.map(([, toKey]) => toKey);
+    if(new Set(toKeys).size !== toKeys.length){
+      await showMessage('Same date picked twice', 'You picked the same person\'s date for two of your dates. Choose a different date for one of them.');
       return;
     }
-    const options = [];
-    schedule.forEach(d => {
-      const target = new Date(d); target.setDate(target.getDate() + BOOKING_WINDOW_DAYS);
-      const targetKey = fmtDateKey(target);
-      if(targetKey === fromKey) return;
-      if(data.closures[targetKey]) return;
-      const assigned = dutyForKey(targetKey);
-      if(!assigned || assigned.id === meId) return;
-      const label = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()} — ${assigned.name}`;
-      options.push({ value: targetKey, label });
+    const sentTo = [];
+    picks.forEach(([fromKey, toKey]) => {
+      const targetPerson = dutyForKey(toKey);
+      if(!targetPerson || targetPerson.id === meId) return;
+      const id = 'swap_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+      data.swapRequests[id] = { id, fromKey, toKey, requesterId: meId, targetId: targetPerson.id, status: 'pending' };
+      logActivity('swap_requested', { fromKey, toKey, otherName: targetPerson.name });
+      sentTo.push({ fromKey, toKey, targetPerson });
     });
-    if(options.length === 0){
-      await showMessage('No dates to swap with', "There's no one else with an upcoming booking-duty date right now.");
-      return;
-    }
-    const toKey = await askChoice('Request a duty swap', 'Trade your date for whose?', options, 'Send request');
-    if(!toKey) return;
-    const targetPerson = dutyForKey(toKey);
-    if(!targetPerson) return;
-    const id = 'swap_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
-    data.swapRequests[id] = { id, fromKey, toKey, requesterId: meId, targetId: targetPerson.id, status: 'pending' };
-    logActivity('swap_requested', { fromKey, toKey, otherName: targetPerson.name });
-    await saveData();
-    await showMessage('Request sent', `Asked ${targetPerson.name} to swap. You'll see it here once they respond.`);
+    if(sentTo.length === 0) return;
+    const ok = await saveData();
+    if(ok === false) return;
+    swapPicks = {};
+    sentTo.forEach(r => notifySwapRequest(r.fromKey, r.toKey, meId, r.targetPerson.id));
+    const names = sentTo.map(r => r.targetPerson.name);
+    await showMessage(sentTo.length === 1 ? 'Request sent' : 'Requests sent',
+      `Asked ${names.join(', ')} to swap. Each gets an email and has to accept before anything changes.`);
   }
 
   async function cancelSwap(id){
@@ -7051,13 +7075,6 @@ function computedCourseHandicap(indexVal, tee){
            </select>`
         : `<span class="ts-duty-static">${r.assigned ? playerLabel(r.assigned) : 'Unassigned'}</span>`;
 
-      let swapControl = '';
-      if(!r.closed && meId && r.assigned && r.assigned.id === meId){
-        const outgoing = pendingOutgoingFrom(r.playKey);
-        swapControl = outgoing
-          ? `<span class="ts-swap-pending">Swap requested <button data-cancel-swap="${outgoing.id}">Cancel</button></span>`
-          : `<button class="ts-swap-btn" data-request-swap="${r.playKey}">🔁 Request swap</button>`;
-      }
 
       const todayKey = fmtDateKey(new Date());
       const dayRef = r.bookKey === todayKey
@@ -7101,7 +7118,6 @@ function computedCourseHandicap(indexVal, tee){
             ${assignedControl}
             <div class="ts-duty-row-sub">${subText}</div>
             ${confirmControl}
-            ${swapControl ? `<div class="ts-duty-row-sub">${swapControl}</div>` : ''}
           </div>
         </div>`;
     }).join('') : `<p class="ts-empty">No dates match this filter.</p>`);
@@ -7123,6 +7139,43 @@ function computedCourseHandicap(indexVal, tee){
       calendarHtml = `<div class="ts-cal-grid">${headerHtml}${padHtml}${cellsHtml}</div>
         <p class="ts-note" style="border-top:none; padding-top:0;">Strikethrough = course closed that round; no tee times required.</p>`;
     }
+
+    // "Swap your booking duty dates": one line per upcoming duty day of mine,
+    // each with its own pick of whose duty day to trade for.
+    const allRows = schedule.map(d => buildDutyRow(d, today));
+    const myDutyRows = meId ? allRows.filter(r => !r.closed && r.assigned && r.assigned.id === meId) : [];
+    const swapTargets = allRows.filter(r => !r.closed && r.assigned && r.assigned.id !== meId);
+    const dayLabel = (dt) => `${DOW_NAMES[dt.getDay()]}, ${MON_NAMES[dt.getMonth()]} ${dt.getDate()}`;
+    const swapSectionHtml = myDutyRows.length ? `
+      <div class="ts-swap-section">
+        <h4>Swap your booking duty dates</h4>
+        <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">
+          Pick who you'd like to trade with for any or all of your dates; leave the others on "Keep this date". Each person gets an email and must accept before anything changes.
+        </p>
+        <div class="ts-swap-grid">
+          <div class="ts-swap-head">My dates</div><div class="ts-swap-head">Request swap with...</div>
+          ${myDutyRows.map(r => {
+            const outgoing = pendingOutgoingFrom(r.playKey);
+            let control;
+            if(outgoing){
+              const other = data.roster.find(p => p.id === outgoing.targetId);
+              control = `<div class="ts-swap-pending">Waiting on <b>${esc(other ? other.name : 'someone')}</b> (${bookingDayLabelFor(outgoing.toKey)}) <button data-cancel-swap="${outgoing.id}">Cancel request</button></div>`;
+            } else {
+              const picked = swapPicks[r.playKey] || '';
+              control = `<select data-swap-pick="${r.playKey}">
+                  <option value="">Keep this date</option>
+                  ${swapTargets.map(t => `<option value="${t.playKey}" ${picked===t.playKey?'selected':''}>${dayLabel(t.bookDate)} — ${esc(t.assigned.name)}</option>`).join('')}
+                </select>`;
+            }
+            return `<div class="ts-swap-date"><b>${dayLabel(r.bookDate)}</b><span>for the ${dayLabel(r.playDate)} round</span></div><div>${control}</div>`;
+          }).join('')}
+        </div>
+        ${myDutyRows.some(r => !pendingOutgoingFrom(r.playKey)) ? `
+        <div class="ts-swap-actions">
+          <button class="ts-swap-send" id="ts-send-swaps">Send swap requests</button>
+          <button class="ts-link-btn" id="ts-clear-swaps">Cancel</button>
+        </div>` : ''}
+      </div>` : '';
 
     const incoming = meId ? pendingIncomingFor(meId) : [];
     const incomingHtml = incoming.map(req => {
@@ -7149,11 +7202,12 @@ function computedCourseHandicap(indexVal, tee){
           They'll be requesting tee times for the round two weeks after that date.
         </p>
         ${incomingHtml}
+        ${swapSectionHtml}
         <div class="ts-duty-controls">
           <div class="ts-duty-sort">
+            <button class="ts-duty-sort-btn ${dutySort==='calendar'?'active':''}" data-duty-sort="calendar">Calendar view</button>
             <button class="ts-duty-sort-btn ${dutySort==='date'?'active':''}" data-duty-sort="date">List by date</button>
             <button class="ts-duty-sort-btn ${dutySort==='person'?'active':''}" data-duty-sort="person">List by person</button>
-            <button class="ts-duty-sort-btn ${dutySort==='calendar'?'active':''}" data-duty-sort="calendar">Calendar view</button>
           </div>
         </div>
         ${dutySort === 'calendar' ? '' : `
@@ -8756,13 +8810,13 @@ function computedCourseHandicap(indexVal, tee){
       });
     });
 
-    document.querySelectorAll('[data-request-swap]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const key = btn.getAttribute('data-request-swap');
-        await requestSwap(key, lastSchedule);
-        render();
-      });
+    document.querySelectorAll('[data-swap-pick]').forEach(sel => {
+      sel.addEventListener('change', () => { swapPicks[sel.getAttribute('data-swap-pick')] = sel.value; });
     });
+    const sendSwapsBtn = document.getElementById('ts-send-swaps');
+    if(sendSwapsBtn) sendSwapsBtn.addEventListener('click', async () => { await sendSwapRequests(); render(); });
+    const clearSwapsBtn = document.getElementById('ts-clear-swaps');
+    if(clearSwapsBtn) clearSwapsBtn.addEventListener('click', () => { swapPicks = {}; render(); });
 
     document.querySelectorAll('[data-cancel-swap]').forEach(btn => {
       btn.addEventListener('click', async () => {
