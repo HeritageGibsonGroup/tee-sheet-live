@@ -951,7 +951,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.24';
+  const APP_VERSION = '2026.10.24.2';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -2024,6 +2024,7 @@
     }
     return false;
   }
+  let swapShowAllDates = false; // swap section shows the first 3 of my dates until "Show more dates..."
   let swapPicks = {}; // Booking Duty swap section: my play-date key -> the play-date key I picked to trade for
   let dutySort = 'date'; // 'date' | 'person'
   let dutyFilterId = ''; // '' = everyone, '__me__' = current identity, or a player id
@@ -7154,7 +7155,7 @@ function computedCourseHandicap(indexVal, tee){
         </p>
         <div class="ts-swap-grid">
           <div class="ts-swap-head">My dates</div><div class="ts-swap-head">Request swap with...</div>
-          ${myDutyRows.map(r => {
+          ${(swapShowAllDates ? myDutyRows : myDutyRows.slice(0, 3)).map(r => {
             const outgoing = pendingOutgoingFrom(r.playKey);
             let control;
             if(outgoing){
@@ -7170,6 +7171,8 @@ function computedCourseHandicap(indexVal, tee){
             return `<div class="ts-swap-date"><b>${dayLabel(r.bookDate)}</b><span>for the ${dayLabel(r.playDate)} round</span></div><div>${control}</div>`;
           }).join('')}
         </div>
+        ${!swapShowAllDates && myDutyRows.length > 3 ? `
+        <button class="ts-link-btn" id="ts-swap-more" style="margin-top:10px;">Show more dates...</button>` : ''}
         ${myDutyRows.some(r => !pendingOutgoingFrom(r.playKey)) ? `
         <div class="ts-swap-actions">
           <button class="ts-swap-send" id="ts-send-swaps">Send swap requests</button>
@@ -8815,6 +8818,8 @@ function computedCourseHandicap(indexVal, tee){
     });
     const sendSwapsBtn = document.getElementById('ts-send-swaps');
     if(sendSwapsBtn) sendSwapsBtn.addEventListener('click', async () => { await sendSwapRequests(); render(); });
+    const swapMoreBtn = document.getElementById('ts-swap-more');
+    if(swapMoreBtn) swapMoreBtn.addEventListener('click', () => { swapShowAllDates = true; render(); });
     const clearSwapsBtn = document.getElementById('ts-clear-swaps');
     if(clearSwapsBtn) clearSwapsBtn.addEventListener('click', () => { swapPicks = {}; render(); });
 
