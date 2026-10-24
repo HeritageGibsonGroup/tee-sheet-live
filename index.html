@@ -951,7 +951,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.24.2';
+  const APP_VERSION = '2026.10.24.3';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -6476,15 +6476,16 @@ function computedCourseHandicap(indexVal, tee){
           <select id="ts-hbh-hole-select" class="ts-hbh-hole-select">
             ${holeJumpOptionsHtml}
           </select>
-          <button id="ts-hbh-next-hole" class="ts-hbh-nav-btn ts-hbh-nav-btn-primary" ${nextDisabled?'disabled':''}${nextAttrs}>›</button>
+          <button id="ts-hbh-next-hole" class="ts-hbh-nav-btn ts-hbh-nav-btn-primary" style="margin-left:auto;" ${nextDisabled?'disabled':''}${nextAttrs}>›</button>
         </div>
         <div class="ts-team-num" style="margin-top:8px;">Hole ${hbhHole}${hbhPar !== null ? ` <span class="ts-team-so">(par ${hbhPar})</span>` : ''} <span class="ts-team-so">— Series ${hbhSeriesIndex+1}, ${hbhProgressLabel}${scoringHoleIndex+1} of ${flatHoles.length}</span></div>
         ${unsavedBannerHtml}
         ${hbhRowsHtml || '<p class="ts-empty">No players to show for this view.</p>'}
       </div>
       <div class="ts-teams-block" style="margin-top:16px;">
-        <div class="ts-section-title-row" style="margin:0 0 8px; justify-content:flex-end;">
+        <div class="ts-section-title-row" style="margin:0 0 8px;">
           <button type="button" class="ts-duty-sort-btn" id="ts-live-scorecards-toggle">${liveScorecardsOpen ? 'Collapse Scorecards' : 'Expand Scorecards'}</button>
+          <button type="button" id="ts-hbh-next-hole-bottom" class="ts-hbh-nav-btn ts-hbh-nav-btn-primary" ${nextDisabled?'disabled':''} title="Next hole">›</button>
         </div>
         ${liveScorecardsOpen ? `
           <p style="margin:0 0 10px; font-size:12px; color:#6b6a5e;">Every team's card, hole 1 to 18, with whatever's been posted so far — updates as scores come in. The brass lines and shading mark the three 6-hole series.</p>
@@ -8672,6 +8673,12 @@ function computedCourseHandicap(indexVal, tee){
         if(ok) scoringHoleIndex = scoringHoleIndex + 1;
         render();
       });
+    }
+    // Second › at the bottom of the player list, so you don't have to scroll
+    // back up after the last score — it just presses the top one.
+    const hbhNextBottomBtn = document.getElementById('ts-hbh-next-hole-bottom');
+    if(hbhNextBottomBtn && hbhNextBtn){
+      hbhNextBottomBtn.addEventListener('click', () => { hbhNextBottomBtn.disabled = true; hbhNextBtn.click(); });
     }
     const hbhHoleSelect = document.getElementById('ts-hbh-hole-select');
     if(hbhHoleSelect){
