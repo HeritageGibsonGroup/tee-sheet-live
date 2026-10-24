@@ -963,7 +963,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.24.5';
+  const APP_VERSION = '2026.10.24.6';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -7252,7 +7252,6 @@ function computedCourseHandicap(indexVal, tee){
       <div class="ts-roster-panel">
         <div class="ts-section-title-row" style="margin:0 0 8px;">
           <h4 style="margin:0;">My Booking Duty Snapshot</h4>
-          <button class="ts-print-btn" id="ts-print-duty">🖨️ Print</button>
         </div>
         ${incomingHtml}
         ${swapSectionHtml}
@@ -7262,6 +7261,7 @@ function computedCourseHandicap(indexVal, tee){
             <button class="ts-duty-sort-btn ${dutySort==='date'?'active':''}" data-duty-sort="date">List by date</button>
             <button class="ts-duty-sort-btn ${dutySort==='person'?'active':''}" data-duty-sort="person">List by person</button>
           </div>
+          <button class="ts-print-btn" id="ts-print-duty">🖨️ Print</button>
         </div>
         ${dutySort === 'calendar' ? '' : `
         <div class="ts-duty-controls" style="margin-top:8px;">
