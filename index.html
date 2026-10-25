@@ -963,7 +963,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.24.7';
+  const APP_VERSION = '2026.10.25';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -2038,10 +2038,26 @@
   }
   let swapShowAllDates = false; // swap section shows the first 3 of my dates until "Show more dates..."
   let swapPicks = {}; // Booking Duty swap section: my play-date key -> the play-date key I picked to trade for
-  let dutySort = 'date'; // 'date' | 'person'
+  // Upcoming Dates and Booking Duty open to whichever view was last picked on
+  // this device (remembered per device, like Bigger buttons).
+  const VIEW_PREFS_KEY = IS_LIVE_ENV ? 'golf-league-view-prefs' : 'golf-league-view-prefs-TEST';
+  function loadViewPref(name, allowed, fallback){
+    try{
+      const prefs = JSON.parse(localStorage.getItem(VIEW_PREFS_KEY) || '{}');
+      return allowed.includes(prefs[name]) ? prefs[name] : fallback;
+    }catch(e){ return fallback; }
+  }
+  function saveViewPref(name, value){
+    try{
+      const prefs = JSON.parse(localStorage.getItem(VIEW_PREFS_KEY) || '{}');
+      prefs[name] = value;
+      localStorage.setItem(VIEW_PREFS_KEY, JSON.stringify(prefs));
+    }catch(e){}
+  }
+  let dutySort = loadViewPref('duty', ['calendar','date','person'], 'date'); // 'calendar' | 'date' | 'person'
   let dutyFilterId = ''; // '' = everyone, '__me__' = current identity, or a player id
   let scheduleFilterId = ''; // same idea, for the Upcoming Dates list
-  let scheduleSort = 'date'; // 'date' | 'person'
+  let scheduleSort = loadViewPref('schedule', ['calendar','date','person','grid'], 'date'); // 'calendar' | 'date' | 'person' | 'grid'
   let lastSchedule = [];
 
   const DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -8545,6 +8561,7 @@ function computedCourseHandicap(indexVal, tee){
     document.querySelectorAll('[data-duty-sort]').forEach(btn => {
       btn.addEventListener('click', () => {
         dutySort = btn.getAttribute('data-duty-sort');
+        saveViewPref('duty', dutySort);
         render();
       });
     });
@@ -8629,6 +8646,7 @@ function computedCourseHandicap(indexVal, tee){
     document.querySelectorAll('[data-schedule-sort]').forEach(btn => {
       btn.addEventListener('click', () => {
         scheduleSort = btn.getAttribute('data-schedule-sort');
+        saveViewPref('schedule', scheduleSort);
         render();
       });
     });
