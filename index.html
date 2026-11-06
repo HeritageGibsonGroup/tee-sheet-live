@@ -7295,9 +7295,9 @@ function computedCourseHandicap(indexVal, tee){
   //    (if nobody has rounds on file, everyone gets an equal share).
   //  - nobody is given a date they're away, a weekday outside their preferred
   //    days, or two booking days in a row, unless no one else can take it.
-  //  - dates are filled in random order, each going to whoever is furthest
-  //    below their share, with a random nudge, so it's random but stays in
-  //    proportion. "Shuffle" gives a different random spread.
+  //  - each player's dates are spaced out evenly across the quarter, with a
+  //    random starting point, so it's random but stays in proportion and
+  //    doesn't bunch up. "Shuffle" gives a different random spread.
   function suggestQuarterPlan(){
     const plan = quarterPlan;
     const days = quarterDutyDays(plan.qKey);
@@ -7326,15 +7326,27 @@ function computedCourseHandicap(indexVal, tee){
     plan.targets = targets;
     plan.played = played;
 
-    const todo = days.map((d, i) => ({ d, i })).filter(x => !x.d.closed && picks[x.d.playKey] === undefined);
-    for(let j = todo.length - 1; j > 0; j--){ const k = Math.floor(Math.random() * (j + 1)); [todo[j], todo[k]] = [todo[k], todo[j]]; }
-
-    todo.forEach(({ d, i }) => {
+    // Spread each player's dates out evenly (Tom, Nov 6: "don't bunch up the
+    // dates for each person"). Work through the open days in order. Each
+    // player has an ideal gap between duties (open days ÷ their share) and a
+    // "due" point: their last duty + that gap, starting from a random point in
+    // their first gap so the order differs every draw. Each date goes to
+    // whoever is most overdue, with a penalty for anyone who'd land close to
+    // one of their own dates that's already fixed (kept or hand-picked).
+    const open = days.filter(d => !d.closed);
+    const gap = {}, due = {};
+    ids.forEach(id => { gap[id] = targets[id] > 0 ? open.length / targets[id] : Infinity; due[id] = Math.random() * Math.min(gap[id], open.length); });
+    const fixedAt = {}; // id -> open-day positions of their fixed dates
+    open.forEach((d, k) => { const id = picks[d.playKey]; if(id) (fixedAt[id] = fixedAt[id] || []).push(k); });
+    open.forEach((d, k) => {
+      const fixedId = picks[d.playKey];
+      if(fixedId !== undefined){
+        if(fixedId && fixedId in due) due[fixedId] = k + gap[fixedId];
+        return;
+      }
       const candidates = ids.filter(id => targets[id] > 0);
       if(!candidates.length){ picks[d.playKey] = ''; return; }
-      // Nearest open booking day on each side (a closed day in between doesn't count as a gap).
-      const nearOpen = (step) => { let j = i + step; while(days[j] && days[j].closed) j += step; return days[j]; };
-      const neighbors = [nearOpen(-1), nearOpen(1)].filter(Boolean).map(x => picks[x.playKey]).filter(Boolean);
+      const neighbors = [open[k-1], open[k+1]].filter(Boolean).map(x => picks[x.playKey]).filter(Boolean);
       const dow = d.bookDate.getDay();
       // Loosen the rules only as far as needed to find someone.
       const tiers = [
@@ -7345,14 +7357,22 @@ function computedCourseHandicap(indexVal, tee){
       ];
       const pool = tiers.find(t => t.length);
       if(!pool){ picks[d.playKey] = ''; return; }
-      // Furthest below their share wins, with a random nudge so it isn't a fixed order.
-      // Players limited to certain weekdays get a small boost on those days, since
-      // they have fewer dates to fill their share.
-      const score = id => (targets[id] - assigned[id]) + Math.random() * 0.9 + (dutyPrefsFor(id).days.length ? 0.4 : 0);
+      const score = id => {
+        let sc = (k - due[id]) / Math.max(gap[id], 1) + Math.random() * 0.25;
+        const near = (fixedAt[id] || []).filter(f => f > k).map(f => f - k);
+        if(near.length){ const dist = Math.min(...near); if(dist < gap[id] / 2) sc -= (gap[id] / 2 - dist) / Math.max(gap[id], 1) * 2; }
+        // Keep totals in proportion: back off anyone already at their share.
+        const over = assigned[id] + 0.5 - targets[id];
+        if(over > 0) sc -= over * 2;
+        // Players held to certain weekdays have fewer chances, so give them a nudge on their days.
+        if(dutyPrefsFor(id).days.length) sc += 0.3;
+        return sc;
+      };
       let best = pool[0], bestScore = -Infinity;
-      pool.forEach(id => { const s = score(id); if(s > bestScore){ bestScore = s; best = id; } });
+      pool.forEach(id => { const sc = score(id); if(sc > bestScore){ bestScore = sc; best = id; } });
       picks[d.playKey] = best;
       assigned[best]++;
+      due[best] = k + gap[best];
     });
     plan.picks = picks;
   }
