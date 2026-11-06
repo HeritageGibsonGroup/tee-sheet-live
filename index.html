@@ -696,6 +696,58 @@
   .ts-swap-send{ background:var(--fairway); color:#fff; border:none; border-radius:7px; padding:10px 18px; font-family:'Inter'; font-size:14px; font-weight:600; cursor:pointer; }
   @media (max-width:560px){ .ts-swap-grid{ grid-template-columns:minmax(0,1fr); } .ts-swap-grid > div:nth-child(1){ padding-bottom:0; border-bottom:none; } .ts-swap-date{ border-bottom:none !important; padding-bottom:2px !important; } }
   .ts-link-btn{ background:none; border:none; padding:0; text-decoration:underline; color:var(--fairway); cursor:pointer; font-family:'Inter'; font-size:13px; }
+  /* Plan a quarter (admin): fill a whole quarter's booking duty at once */
+  .ts-qplan{ border:1px solid var(--ivory-line); border-radius:10px; padding:14px 16px; margin:0 0 14px; background:#FCFAF4; }
+  .ts-qplan-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .ts-qplan-head h4{ margin:0 !important; font-family:'Inter',sans-serif !important; font-size:15px !important; font-weight:600; }
+  .ts-qplan-sub{ font-size:13px; color:#6b6a5e; margin:4px 0 0; line-height:1.5; }
+  .ts-qplan-step{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:#6b6a5e; margin:16px 0 6px; }
+  .ts-qplan select{ font-family:'Inter'; font-size:14px; padding:8px 10px; border-radius:7px; border:1px solid var(--ivory-line); background:#fff; max-width:100%; }
+  .ts-qplan-check{ display:flex; align-items:center; gap:8px; font-size:14px; margin-top:10px; }
+  .ts-qplan-players{ display:flex; flex-direction:column; }
+  .ts-qplan-prow{ display:grid; grid-template-columns:minmax(150px, 1.2fr) minmax(150px, 1.3fr) auto minmax(0, 1.6fr); gap:6px 14px; align-items:center; padding:7px 0; border-bottom:1px solid var(--ivory-line); }
+  .ts-qplan-prow.off .ts-qplan-pstats, .ts-qplan-prow.off .ts-qplan-pname span{ color:#a9a795; }
+  .ts-qplan-pname{ display:flex; align-items:center; gap:7px; font-size:14px; font-weight:600; min-width:0; }
+  .ts-qplan-pname span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ts-qplan-pstats{ font-size:12px; color:#6b6a5e; }
+  .ts-qplan-pstats b{ color:var(--fairway); }
+  .ts-qplan-pprefs{ display:flex; align-items:center; gap:4px; }
+  .ts-qplan-plabel{ font-size:12px; color:#6b6a5e; margin-right:2px; }
+  .ts-qplan-day{ font-family:'Inter'; font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--ivory-line); background:#fff; color:#6b6a5e; cursor:pointer; }
+  .ts-qplan-day.on{ background:var(--fairway); border-color:var(--fairway); color:#fff; font-weight:600; }
+  .ts-qplan-paway{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:13px; min-width:0; }
+  .ts-qplan-away{ display:inline-flex; align-items:center; gap:4px; font-size:12px; background:#FBEDEA; color:var(--rust); border-radius:999px; padding:2px 4px 2px 9px; }
+  .ts-qplan-away button{ border:none; background:none; color:var(--rust); cursor:pointer; font-size:14px; line-height:1; padding:0 4px; }
+  .ts-qplan-away-edit{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .ts-qplan-away-edit input{ font-family:'Inter'; font-size:13px; padding:4px 6px; border-radius:6px; border:1px solid var(--ivory-line); }
+  .ts-qplan-inline{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+  .ts-qplan-inline-label{ display:flex; align-items:center; gap:8px; font-size:14px; flex-wrap:wrap; }
+  .ts-qsum-wrap{ overflow-x:auto; margin:4px 0 10px; }
+  .ts-qsum{ width:100%; border-collapse:collapse; font-size:13px; background:#fff; border:1px solid var(--ivory-line); border-radius:8px; }
+  .ts-qsum th{ text-align:left; font-size:12px; font-weight:600; color:#6b6a5e; padding:7px 10px; border-bottom:1px solid var(--ivory-line); vertical-align:bottom; }
+  .ts-qsum th span{ font-weight:400; font-size:11px; }
+  .ts-qsum td{ padding:6px 10px; border-bottom:1px solid var(--ivory-line); }
+  .ts-qsum .num{ text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .ts-qsum td b{ color:var(--fairway); }
+  .ts-qsum tfoot td{ font-weight:600; border-bottom:none; }
+  .ts-qsum-details{ margin:6px 0 10px; }
+  @media (max-width:560px){ .ts-qsum th:nth-child(3), .ts-qsum td:nth-child(3), .ts-qsum th:nth-child(5), .ts-qsum td:nth-child(5){ display:none; } .ts-qsum th, .ts-qsum td{ padding:6px 8px; } }
+  .ts-qsum-details summary{ cursor:pointer; font-size:14px; font-weight:600; color:var(--fairway); padding:4px 0; }
+  .ts-qplan-tag.warn{ color:var(--rust); background:#FBEDEA; }
+  @media (max-width:760px){ .ts-qplan-prow{ grid-template-columns:minmax(0,1fr); gap:4px; } .ts-qplan-pstats{ padding-left:24px; } .ts-qplan-pprefs, .ts-qplan-paway{ padding-left:24px; } }
+  .ts-qplan-links{ display:flex; gap:14px; margin-bottom:6px; }
+  .ts-qplan-counts{ display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 10px; }
+  .ts-qplan-count{ font-size:12px; background:#fff; border:1px solid var(--ivory-line); border-radius:999px; padding:3px 10px; }
+  .ts-qplan-count b{ color:var(--fairway); }
+  .ts-qplan-grid{ display:grid; grid-template-columns:minmax(120px, 200px) minmax(0, 1fr); column-gap:16px; align-items:center; }
+  .ts-qplan-grid > div{ padding:7px 0; border-bottom:1px solid var(--ivory-line); min-width:0; }
+  .ts-qplan-grid select{ width:100%; max-width:420px; }
+  .ts-qplan-date b{ display:block; font-size:15px; }
+  .ts-qplan-date span{ font-size:12px; color:#6b6a5e; }
+  .ts-qplan-tag{ display:inline-block; font-size:11px; font-weight:600; color:#3E6B3A; background:#E4EFE1; border-radius:999px; padding:2px 8px; margin-left:8px; }
+  .ts-qplan-closed{ font-size:13px; color:var(--rust); font-weight:600; }
+  .ts-qplan-month{ grid-column:1 / -1; font-size:13px; font-weight:600; color:var(--fairway); padding-top:14px !important; }
+  @media (max-width:560px){ .ts-qplan-grid{ grid-template-columns:minmax(0,1fr); } .ts-qplan-date{ border-bottom:none !important; padding-bottom:2px !important; } }
   .ts-duty-sort-btn{
     font-family:'Inter',sans-serif; font-size:12px; font-weight:500; color:#6b6a5e;
     background:var(--ivory); border:1px solid var(--ivory-line); border-radius:16px; padding:6px 12px; cursor:pointer;
@@ -879,7 +931,7 @@
     .ts-warn-banner, .ts-test-banner, #ts-modal-root, .ts-header::after,
     .ts-whoami, .ts-pin-link, .ts-topbar, .ts-reminders, .ts-tabbar, .ts-footer-note,
     .ts-print-btn, .ts-toggle-wrap, .ts-holes-group, .ts-admin-add, .chip-remove,
-    .ts-duty-sort, #ts-duty-filter, #ts-schedule-filter, .ts-swap-btn, .ts-swap-pending, .ts-swap-section,
+    .ts-duty-sort, #ts-duty-filter, #ts-schedule-filter, .ts-swap-btn, .ts-swap-pending, .ts-swap-section, .ts-qplan,
     .ts-admin-pill, .ts-add-row, .ts-import-row, #ts-new-name, #ts-add-player, .ts-player-action-select,
     .ts-subtabbar, .ts-accept-teams-wrap {
       display:none !important;
@@ -963,7 +1015,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.10.27';
+  const APP_VERSION = '2026.11.05';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1955,7 +2007,7 @@
   let expandCollapseState = null; // 'expand' | 'collapse' | null — just for the subtle indicator
   let activeSection = 'schedule'; // 'schedule' | 'duty' | 'handicaps' | 'scoring' | 'comms' | 'admin'
   let activityLogView = 'upcoming'; // Admin > Activity Log: 'upcoming' | 'past'
-  let adminSubTab = 'roster'; // 'roster' | 'closures' | 'pastDuty' | 'activityLog' | 'data' | 'reminders' | 'handicaps'
+  let adminSubTab = 'roster'; // 'roster' | 'closures' | 'planDuty' | 'pastDuty' | 'activityLog' | 'data' | 'reminders' | 'handicaps'
   let scoringSelectedDate = null; // dateKey currently shown on the Scoring & Bets tab — always the upcoming round unless reviewDateKey (below) pins it to a past one
   // Set by "Review prior rounds" — null means Scoring & Bets always follows
   // whatever the current upcoming round is (no picker shown for that, by
@@ -2036,6 +2088,11 @@
     }
     return false;
   }
+  // Booking Duty "Plan a quarter" box (admin only). null = closed. When open:
+  // { qKey:'2027-Q1', windowOffset, includeIds:[player ids in the rotation], replaceExisting,
+  //   picks:{ playKey: playerId|'' }, manual:{ playKey: id } } — picks is the preview,
+  //   saved to data.duty only on Save. See suggestQuarterPlan().
+  let quarterPlan = null;
   let swapShowAllDates = false; // swap section shows the first 3 of my dates until "Show more dates..."
   let swapPicks = {}; // Booking Duty swap section: my play-date key -> the play-date key I picked to trade for
   // Upcoming Dates and Booking Duty open to whichever view was last picked on
@@ -2062,6 +2119,7 @@
 
   const DOW_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const MON_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const FULL_MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   function fmtDateKey(d){
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -5075,6 +5133,7 @@ function computedCourseHandicap(indexVal, tee){
           <div class="ts-subtabbar">
             <button class="ts-subtab ${adminSubTab==='roster'?'active':''}" data-subtab="roster">League Roster</button>
             <button class="ts-subtab ${adminSubTab==='closures'?'active':''}" data-subtab="closures">Course Information</button>
+            <button class="ts-subtab ${adminSubTab==='planDuty'?'active':''}" data-subtab="planDuty">Plan Booking Duty</button>
             <button class="ts-subtab ${adminSubTab==='pastDuty'?'active':''}" data-subtab="pastDuty">Past Booking Duty</button>
             <button class="ts-subtab ${adminSubTab==='activityLog'?'active':''}" data-subtab="activityLog">Activity Log</button>
             <button class="ts-subtab ${adminSubTab==='data'?'active':''}" data-subtab="data">Data Import/Export &amp; Comparison</button>
@@ -5155,6 +5214,7 @@ function computedCourseHandicap(indexVal, tee){
       const contentEl = document.getElementById('ts-admin-content');
       if(adminSubTab === 'roster') renderRosterPanel(contentEl);
       else if(adminSubTab === 'closures') renderCourseInfoPanel(contentEl, schedule);
+      else if(adminSubTab === 'planDuty') renderPlanDutyPanel(contentEl);
       else if(adminSubTab === 'pastDuty') renderPastDutyPanel(contentEl);
       else if(adminSubTab === 'activityLog') renderActivityLogPanel(contentEl);
       else if(adminSubTab === 'data') renderDataPanel(contentEl);
@@ -7121,6 +7181,403 @@ function computedCourseHandicap(indexVal, tee){
     return dates;
   }
 
+  // ---- Plan a quarter: fill a whole quarter's booking duty in one go ----
+  // Quarters go by BOOKING day (the date on the Booking Duty list), the same
+  // way everyone thinks about duty. Duty itself is still stored by the round
+  // (booking day + BOOKING_WINDOW_DAYS), exactly like the one-at-a-time dropdowns.
+  //
+  // How duties are shared out (Tom's rules, Nov 2026): at random, but in
+  // proportion to how many rounds each player played in a 3-month window
+  // before the quarter (default: the three months ending two months before
+  // the quarter starts, e.g. Aug-Oct for Jan-Mar, Nov-Jan for Apr-Jun).
+  // Each player can also have preferred duty days (e.g. Wednesdays only) and
+  // dates away; those live in data.dutyPrefs and are kept for later quarters:
+  //   data.dutyPrefs = { playerId: { days:[1,3,5], away:[{from:'YYYY-MM-DD', to:'YYYY-MM-DD'}] } }
+  function quarterKeyFor(d){ return d.getFullYear() + '-Q' + (Math.floor(d.getMonth()/3) + 1); }
+  function quarterRange(qKey){
+    const [y, q] = qKey.split('-Q').map(Number);
+    const start = new Date(y, (q-1)*3, 1);
+    const end = new Date(y, (q-1)*3 + 3, 0);
+    return { start, end, label: `${MON_NAMES[start.getMonth()]} – ${MON_NAMES[end.getMonth()]} ${y}` };
+  }
+  // This quarter (whatever's left of it) plus the next three.
+  function quarterOptions(){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const out = [];
+    let cursor = new Date(today.getFullYear(), Math.floor(today.getMonth()/3)*3, 1);
+    for(let i = 0; i < 4; i++){
+      out.push(quarterKeyFor(cursor));
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 3, 1);
+    }
+    return out;
+  }
+  function defaultQuarterKey(){ return quarterOptions()[1]; } // next quarter = "in advance"
+  // Booking days in the quarter that haven't passed yet, each with its round.
+  function quarterDutyDays(qKey, includePast){
+    const today = new Date(); today.setHours(0,0,0,0);
+    const { start, end } = quarterRange(qKey);
+    const days = [];
+    let cursor = includePast ? new Date(start) : new Date(Math.max(start, today));
+    while(cursor <= end){
+      if(PLAY_DOWS.includes(cursor.getDay())){
+        const bookDate = new Date(cursor);
+        const playDate = new Date(bookDate); playDate.setDate(playDate.getDate() + BOOKING_WINDOW_DAYS);
+        const playKey = fmtDateKey(playDate);
+        days.push({ bookDate, bookKey: fmtDateKey(bookDate), playDate, playKey, closed: !!data.closures[playKey] });
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+  }
+
+  // The 3-month window rounds are counted in. offset = how many months before
+  // the quarter's first month the window starts (5 = Tom's default: Aug for Jan).
+  const ROUNDS_WINDOW_OFFSETS = [5, 4, 3];
+  function roundsWindow(qKey, offset){
+    const { start } = quarterRange(qKey);
+    const from = new Date(start.getFullYear(), start.getMonth() - offset, 1);
+    const to = new Date(from.getFullYear(), from.getMonth() + 3, 0);
+    const sameYear = from.getFullYear() === to.getFullYear();
+    const label = sameYear
+      ? `${MON_NAMES[from.getMonth()]} – ${MON_NAMES[to.getMonth()]} ${to.getFullYear()}`
+      : `${MON_NAMES[from.getMonth()]} ${from.getFullYear()} – ${MON_NAMES[to.getMonth()]} ${to.getFullYear()}`;
+    return { fromKey: fmtDateKey(from), toKey: fmtDateKey(to), label };
+  }
+  // Rounds each player actually played in the window: dates already past, not
+  // closed, where they were in the confirmed group (not left on standby).
+  function roundsPlayedIn(win){
+    const todayKey = fmtDateKey(new Date());
+    const counts = {};
+    Object.keys(data.signups || {}).forEach(k => {
+      if(k < win.fromKey || k > win.toKey || k >= todayKey || data.closures[k]) return;
+      const entries = data.signups[k] || [];
+      splitConfirmedStandby(entries, capacityFor(k)).confirmed.forEach(e => {
+        if(e && e.id) counts[e.id] = (counts[e.id] || 0) + 1;
+      });
+    });
+    return counts;
+  }
+
+  function dutyPrefsFor(id){
+    const p = (data.dutyPrefs || {})[id] || {};
+    return { days: Array.isArray(p.days) ? p.days : [], away: Array.isArray(p.away) ? p.away : [] };
+  }
+  function isAwayOn(id, dateKey){
+    return dutyPrefsFor(id).away.some(r => r.from <= dateKey && dateKey <= (r.to || r.from));
+  }
+  function prefersDay(id, dow){
+    const days = dutyPrefsFor(id).days;
+    return !days.length || days.includes(dow);
+  }
+  async function updateDutyPrefs(id, fn){
+    if(!data.dutyPrefs) data.dutyPrefs = {};
+    const cur = dutyPrefsFor(id);
+    const next = fn({ days: [...cur.days], away: cur.away.map(r => ({...r})) });
+    if(!next.days.length && !next.away.length) delete data.dutyPrefs[id];
+    else data.dutyPrefs[id] = next;
+    await saveData();
+  }
+
+  // Who's ticked by default: regular players who played at least one round in
+  // the window. If nobody has any rounds on file for it, every regular player.
+  function defaultRotationIds(qKey, offset){
+    const played = roundsPlayedIn(roundsWindow(qKey, offset));
+    const regulars = sortedRoster().filter(p => !p.isGuest);
+    const withRounds = regulars.filter(p => played[p.id] > 0);
+    return (withRounds.length ? withRounds : regulars).map(p => p.id);
+  }
+
+  // Works out a suggested spread and stores it in quarterPlan.picks (and the
+  // per-player targets in quarterPlan.targets). Rules:
+  //  - closed rounds get no one; dates already assigned are kept (unless
+  //    "redo" is ticked); dates the admin changed by hand in the preview are kept.
+  //  - each player's share = open dates × their rounds ÷ everyone's rounds
+  //    (if nobody has rounds on file, everyone gets an equal share).
+  //  - nobody is given a date they're away, a weekday outside their preferred
+  //    days, or two booking days in a row, unless no one else can take it.
+  //  - dates are filled in random order, each going to whoever is furthest
+  //    below their share, with a random nudge, so it's random but stays in
+  //    proportion. "Shuffle" gives a different random spread.
+  function suggestQuarterPlan(){
+    const plan = quarterPlan;
+    const days = quarterDutyDays(plan.qKey);
+    const ids = plan.includeIds.filter(id => data.roster.some(p => p.id === id));
+    const played = roundsPlayedIn(roundsWindow(plan.qKey, plan.windowOffset));
+    const picks = {};
+    const assigned = {}; ids.forEach(id => assigned[id] = 0);
+
+    // Fixed first: closed, kept, hand-picked.
+    days.forEach(d => {
+      if(d.closed){ picks[d.playKey] = ''; return; }
+      if(plan.manual[d.playKey] !== undefined){
+        picks[d.playKey] = plan.manual[d.playKey];
+      } else {
+        const existing = data.duty[d.playKey];
+        if(!plan.replaceExisting && existing && data.roster.some(p => p.id === existing)) picks[d.playKey] = existing;
+      }
+      const id = picks[d.playKey];
+      if(id && id in assigned) assigned[id]++;
+    });
+
+    const openCount = days.filter(d => !d.closed).length;
+    const totalRounds = ids.reduce((s, id) => s + (played[id] || 0), 0);
+    const targets = {};
+    ids.forEach(id => { targets[id] = totalRounds > 0 ? openCount * (played[id] || 0) / totalRounds : (ids.length ? openCount / ids.length : 0); });
+    plan.targets = targets;
+    plan.played = played;
+
+    const todo = days.map((d, i) => ({ d, i })).filter(x => !x.d.closed && picks[x.d.playKey] === undefined);
+    for(let j = todo.length - 1; j > 0; j--){ const k = Math.floor(Math.random() * (j + 1)); [todo[j], todo[k]] = [todo[k], todo[j]]; }
+
+    todo.forEach(({ d, i }) => {
+      const candidates = ids.filter(id => targets[id] > 0);
+      if(!candidates.length){ picks[d.playKey] = ''; return; }
+      // Nearest open booking day on each side (a closed day in between doesn't count as a gap).
+      const nearOpen = (step) => { let j = i + step; while(days[j] && days[j].closed) j += step; return days[j]; };
+      const neighbors = [nearOpen(-1), nearOpen(1)].filter(Boolean).map(x => picks[x.playKey]).filter(Boolean);
+      const dow = d.bookDate.getDay();
+      // Loosen the rules only as far as needed to find someone.
+      const tiers = [
+        candidates.filter(id => !isAwayOn(id, d.bookKey) && prefersDay(id, dow) && !neighbors.includes(id)),
+        candidates.filter(id => !isAwayOn(id, d.bookKey) && prefersDay(id, dow)),
+        candidates.filter(id => !isAwayOn(id, d.bookKey) && !neighbors.includes(id)),
+        candidates.filter(id => !isAwayOn(id, d.bookKey)),
+      ];
+      const pool = tiers.find(t => t.length);
+      if(!pool){ picks[d.playKey] = ''; return; }
+      // Furthest below their share wins, with a random nudge so it isn't a fixed order.
+      // Players limited to certain weekdays get a small boost on those days, since
+      // they have fewer dates to fill their share.
+      const score = id => (targets[id] - assigned[id]) + Math.random() * 0.9 + (dutyPrefsFor(id).days.length ? 0.4 : 0);
+      let best = pool[0], bestScore = -Infinity;
+      pool.forEach(id => { const s = score(id); if(s > bestScore){ bestScore = s; best = id; } });
+      picks[d.playKey] = best;
+      assigned[best]++;
+    });
+    plan.picks = picks;
+  }
+
+  function openQuarterPlan(){
+    const qKey = defaultQuarterKey();
+    quarterPlan = { qKey, windowOffset: ROUNDS_WINDOW_OFFSETS[0], includeIds: defaultRotationIds(qKey, ROUNDS_WINDOW_OFFSETS[0]),
+      replaceExisting: false, picks: {}, manual: {}, targets: {}, played: {}, awayEditing: null };
+    suggestQuarterPlan();
+  }
+
+  async function saveQuarterPlan(){
+    if(!isAdmin || !quarterPlan) return;
+    const days = quarterDutyDays(quarterPlan.qKey);
+    const { label } = quarterRange(quarterPlan.qKey);
+    let set = 0;
+    days.forEach(d => {
+      if(d.closed) return;
+      const id = quarterPlan.picks[d.playKey] || '';
+      if(id){ data.duty[d.playKey] = id; set++; }
+      else if(data.duty[d.playKey]){ delete data.duty[d.playKey]; }
+    });
+    const unassigned = days.filter(d => !d.closed && !quarterPlan.picks[d.playKey]).length;
+    await saveData();
+    quarterPlan = null;
+    render();
+    await showMessage('Booking duty saved',
+      `${set} booking day${set===1?'':'s'} in ${label} now ${set===1?'has':'have'} someone on duty.` +
+      (unassigned ? ` ${unassigned} ${unassigned===1?'is':'are'} still unassigned.` : '') +
+      ' Players can see their dates on the Booking Duty tab, and swaps work as usual.');
+  }
+
+  // ---- Rounds and duty summary (admin) ----
+  // Per player: rounds played in the window and booking-duty days in the
+  // quarter (every booking day in it, past ones too). Used on its own box on
+  // the Booking Duty tab (saved duties) and inside the planner (the preview).
+  let dutySummary = null; // null = closed, else { qKey, windowOffset }
+  function summaryQuarterOptions(){
+    const opts = quarterOptions();
+    const { start } = quarterRange(opts[0]);
+    return [quarterKeyFor(new Date(start.getFullYear(), start.getMonth() - 3, 1)), ...opts];
+  }
+  function dutySummaryTableHtml(qKey, windowOffset, previewPicks, includeIds){
+    const win = roundsWindow(qKey, windowOffset);
+    const played = roundsPlayedIn(win);
+    const duties = {};
+    quarterDutyDays(qKey, true).forEach(d => {
+      if(d.closed) return;
+      const id = previewPicks && previewPicks[d.playKey] !== undefined ? previewPicks[d.playKey] : data.duty[d.playKey];
+      if(id) duties[id] = (duties[id] || 0) + 1;
+    });
+    const players = sortedRoster().filter(p => (played[p.id] || 0) > 0 || (duties[p.id] || 0) > 0 || (includeIds && includeIds.includes(p.id)));
+    players.sort((a, b) => ((played[b.id]||0) - (played[a.id]||0)) || ((duties[b.id]||0) - (duties[a.id]||0)));
+    const totalR = players.reduce((s, p) => s + (played[p.id] || 0), 0);
+    const totalD = players.reduce((s, p) => s + (duties[p.id] || 0), 0);
+    const pct = (n, t) => t ? Math.round(100 * n / t) + '%' : '–';
+    const { label } = quarterRange(qKey);
+    if(!players.length) return `<p class="ts-qplan-sub">No rounds played ${win.label} and no booking duty in ${label} yet.</p>`;
+    return `<div class="ts-qsum-wrap"><table class="ts-qsum">
+        <thead><tr><th>Player</th><th class="num">Rounds played<br><span>${win.label}</span></th><th class="num">Share of rounds</th><th class="num">Duty days<br><span>${label}</span></th><th class="num">Share of duty</th></tr></thead>
+        <tbody>${players.map(p => `<tr><td>${playerLabel(p)}</td><td class="num">${played[p.id] || 0}</td><td class="num">${pct(played[p.id] || 0, totalR)}</td><td class="num"><b>${duties[p.id] || 0}</b></td><td class="num">${pct(duties[p.id] || 0, totalD)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td>Total</td><td class="num">${totalR}</td><td></td><td class="num">${totalD}</td><td></td></tr></tfoot>
+      </table></div>`;
+  }
+  function dutySummaryHtml(){
+    if(!isAdmin) return '';
+    if(!dutySummary){
+      return `<div class="ts-qplan">
+          <div class="ts-qplan-head">
+            <h4>Rounds and duty summary</h4>
+            <button class="ts-duty-sort-btn" id="ts-qsum-open">Show summary</button>
+          </div>
+          <p class="ts-qplan-sub">See how many rounds each player played and how many booking duty days they have in a quarter.</p>
+        </div>`;
+    }
+    const today = new Date();
+    return `<div class="ts-qplan">
+        <div class="ts-qplan-head">
+          <h4>Rounds and duty summary</h4>
+          <button class="ts-link-btn" id="ts-qsum-close">Hide summary</button>
+        </div>
+        <div class="ts-qplan-inline" style="margin:10px 0 12px;">
+          <label class="ts-qplan-inline-label">Duty in <select id="ts-qsum-quarter">
+            ${summaryQuarterOptions().map(k => `<option value="${k}" ${k===dutySummary.qKey?'selected':''}>${quarterRange(k).label}${k===quarterKeyFor(today)?' (this quarter)':''}</option>`).join('')}
+          </select></label>
+          <label class="ts-qplan-inline-label">Rounds played in <select id="ts-qsum-window">
+            ${ROUNDS_WINDOW_OFFSETS.map(o => `<option value="${o}" ${o===dutySummary.windowOffset?'selected':''}>${roundsWindow(dutySummary.qKey, o).label}</option>`).join('')}
+          </select></label>
+        </div>
+        ${dutySummaryTableHtml(dutySummary.qKey, dutySummary.windowOffset, null, null)}
+        <p class="ts-qplan-sub">Rounds played counts past dates where the player was in the confirmed group, not on standby. Duty days counts every booking day in the quarter, past and upcoming, as currently saved.</p>
+      </div>`;
+  }
+
+  // Admin > Plan Booking Duty: the quarter planner and the rounds/duty summary.
+  function renderPlanDutyPanel(el){
+    if(!isAdmin){ el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="ts-roster-panel">${quarterPlanHtml()}${dutySummaryHtml()}</div>`;
+  }
+
+  function quarterPlanHtml(){
+    if(!isAdmin) return '';
+    if(!quarterPlan){
+      return `<div class="ts-qplan">
+          <div class="ts-qplan-head">
+            <h4>Plan a quarter</h4>
+            <button class="ts-swap-send" id="ts-qplan-open">Plan a quarter's duties</button>
+          </div>
+          <p class="ts-qplan-sub">Assign booking duty for a whole quarter at once, at random and in proportion to rounds played. Players' preferred days and dates away are taken into account. You'll see a preview before anything is saved.</p>
+        </div>`;
+    }
+    const plan = quarterPlan;
+    const days = quarterDutyDays(plan.qKey);
+    const { label } = quarterRange(plan.qKey);
+    const win = roundsWindow(plan.qKey, plan.windowOffset);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const dayLabel = (dt) => `${DOW_NAMES[dt.getDay()]}, ${MON_NAMES[dt.getMonth()]} ${dt.getDate()}`;
+    const shortDate = (k) => { const dt = new Date(k + 'T00:00:00'); return `${MON_NAMES[dt.getMonth()]} ${dt.getDate()}`; };
+    const roster = sortedRoster();
+    const played = plan.played || {};
+    const totalRounds = plan.includeIds.reduce((s, id) => s + (played[id] || 0), 0);
+
+    const quarterSelect = `<select id="ts-qplan-quarter">
+        ${quarterOptions().map(k => {
+          const r = quarterRange(k);
+          const thisOne = k === quarterKeyFor(today);
+          return `<option value="${k}" ${k===plan.qKey?'selected':''}>${r.label}${thisOne ? ' (rest of this quarter)' : ''}</option>`;
+        }).join('')}
+      </select>`;
+    const windowSelect = `<select id="ts-qplan-window">
+        ${ROUNDS_WINDOW_OFFSETS.map(o => `<option value="${o}" ${o===plan.windowOffset?'selected':''}>${roundsWindow(plan.qKey, o).label}</option>`).join('')}
+      </select>`;
+
+    // Counts for the preview (open dates only).
+    const counts = {};
+    days.forEach(d => { const id = plan.picks[d.playKey]; if(!d.closed && id) counts[id] = (counts[id]||0) + 1; });
+
+    const dayBtns = (p) => {
+      const prefs = dutyPrefsFor(p.id).days;
+      return PLAY_DOWS.map(dw => `<button type="button" class="ts-qplan-day ${prefs.includes(dw)?'on':''}" data-qplan-day="${p.id}:${dw}" title="Prefers ${DOW_NAMES[dw]}">${DOW_NAMES[dw]}</button>`).join('');
+    };
+    const awayHtml = (p) => {
+      const away = dutyPrefsFor(p.id).away;
+      const chips = away.map((r, idx) => `<span class="ts-qplan-away">${shortDate(r.from)}${r.to && r.to !== r.from ? ' – ' + shortDate(r.to) : ''}<button type="button" data-qplan-away-del="${p.id}:${idx}" aria-label="Remove">×</button></span>`).join('');
+      const editor = plan.awayEditing === p.id
+        ? `<span class="ts-qplan-away-edit"><input type="date" id="ts-qplan-away-from"> to <input type="date" id="ts-qplan-away-to"> <button type="button" class="ts-qplan-day on" id="ts-qplan-away-add" data-player="${p.id}">Add</button> <button type="button" class="ts-link-btn" id="ts-qplan-away-cancel">Cancel</button></span>`
+        : `<button type="button" class="ts-link-btn" data-qplan-away-open="${p.id}">Add dates away</button>`;
+      return `${chips}${editor}`;
+    };
+    const playersHtml = roster.map(p => {
+      const inRot = plan.includeIds.includes(p.id);
+      const share = inRot && plan.targets[p.id] != null ? plan.targets[p.id] : 0;
+      return `<div class="ts-qplan-prow ${inRot ? '' : 'off'}">
+          <label class="ts-qplan-pname"><input type="checkbox" data-qplan-player="${p.id}" ${inRot?'checked':''}><span>${playerLabel(p)}${p.isGuest ? ' (guest)' : ''}</span></label>
+          <div class="ts-qplan-pstats">${played[p.id] || 0} round${(played[p.id]||0)===1?'':'s'}${inRot ? ` · share ${share.toFixed(1)} · <b>${counts[p.id] || 0} day${(counts[p.id]||0)===1?'':'s'}</b>` : ''}</div>
+          <div class="ts-qplan-pprefs"><span class="ts-qplan-plabel">Prefers</span>${dayBtns(p)}</div>
+          <div class="ts-qplan-paway">${awayHtml(p)}</div>
+        </div>`;
+    }).join('');
+
+    const openDays = days.filter(d => !d.closed).length;
+    const unassigned = days.filter(d => !d.closed && !plan.picks[d.playKey]).length;
+
+    let lastMonth = -1;
+    const rowsHtml = days.map(d => {
+      let monthHead = '';
+      if(d.bookDate.getMonth() !== lastMonth){
+        lastMonth = d.bookDate.getMonth();
+        monthHead = `<div class="ts-qplan-month">${FULL_MONTH_NAMES[lastMonth]}</div>`;
+      }
+      const id = plan.picks[d.playKey];
+      const tags = [];
+      if(plan.manual[d.playKey] !== undefined) tags.push('<span class="ts-qplan-tag">Changed by hand</span>');
+      else if(!plan.replaceExisting && data.duty[d.playKey] && id === data.duty[d.playKey]) tags.push('<span class="ts-qplan-tag">Already set</span>');
+      if(id && isAwayOn(id, d.bookKey)) tags.push('<span class="ts-qplan-tag warn">Away that day</span>');
+      else if(id && !prefersDay(id, d.bookDate.getDay())) tags.push(`<span class="ts-qplan-tag warn">Prefers ${dutyPrefsFor(id).days.map(x => DOW_NAMES[x]).join('/')}</span>`);
+      const control = d.closed
+        ? `<span class="ts-qplan-closed">Course closed for this round. No duty needed.</span>`
+        : `<select data-qplan-pick="${d.playKey}">
+             <option value="">Unassigned</option>
+             ${roster.map(p => `<option value="${p.id}" ${id===p.id?'selected':''}>${playerLabel(p)}</option>`).join('')}
+           </select>${tags.join('')}`;
+      return `${monthHead}<div class="ts-qplan-date"><b>${dayLabel(d.bookDate)}</b><span>for the ${dayLabel(d.playDate)} round</span></div><div>${control}</div>`;
+    }).join('');
+
+    return `<div class="ts-qplan">
+        <div class="ts-qplan-head">
+          <h4>Plan a quarter: ${label}</h4>
+          <button class="ts-link-btn" id="ts-qplan-cancel">Close without saving</button>
+        </div>
+        <p class="ts-qplan-sub">Duty dates aren't changed until you press Save. Dates are booking days, the days someone goes to the pro shop.</p>
+
+        <div class="ts-qplan-step">1. Quarter</div>
+        <div class="ts-qplan-inline">
+          ${quarterSelect}
+          <label class="ts-qplan-inline-label">Count rounds played in ${windowSelect}</label>
+        </div>
+        <label class="ts-qplan-check"><input type="checkbox" id="ts-qplan-replace" ${plan.replaceExisting?'checked':''}> Also redo dates that already have someone assigned</label>
+
+        <div class="ts-qplan-step">2. Players, preferences and dates away</div>
+        <p class="ts-qplan-sub" style="margin:0 0 8px;">
+          ${totalRounds ? `${totalRounds} rounds played ${win.label} by the players ticked. Each player's share of the ${openDays} days follows their rounds.` : `No rounds on file for ${win.label} yet, so the days are shared out equally.`}
+          Tap a day to limit someone to that day (tap again to clear). Preferences and dates away save right away and carry over to later quarters.
+        </p>
+        <div class="ts-qplan-links">
+          <button class="ts-link-btn" id="ts-qplan-all">Tick everyone</button>
+          <button class="ts-link-btn" id="ts-qplan-none">Untick everyone</button>
+        </div>
+        <div class="ts-qplan-players">${playersHtml}</div>
+
+        <div class="ts-qplan-step">3. Check the dates</div>
+        ${days.length ? `
+        <p class="ts-qplan-sub" style="margin:0 0 6px;">${openDays} booking day${openDays===1?'':'s'} to cover${unassigned ? `, ${unassigned} still unassigned` : ''}. You can change any date; your changes stay put when you shuffle.</p>
+        <details class="ts-qsum-details" ${plan.summaryOpen ? 'open' : ''} id="ts-qplan-sumdet"><summary>Summary: rounds played and duty days per player</summary>
+          ${dutySummaryTableHtml(plan.qKey, plan.windowOffset, plan.picks, plan.includeIds)}
+        </details>
+        <div class="ts-qplan-links"><button class="ts-link-btn" id="ts-qplan-shuffle">Shuffle (new random draw)</button></div>
+        <div class="ts-qplan-grid">${rowsHtml}</div>
+        <div class="ts-swap-actions">
+          <button class="ts-swap-send" id="ts-qplan-save">Save ${label} duties</button>
+          <button class="ts-link-btn" id="ts-qplan-cancel2">Cancel</button>
+        </div>` : `<p class="ts-qplan-sub">No booking days left in this quarter.</p>`}
+      </div>`;
+  }
+
   function renderDutyPanel(el, schedule){
     const today = new Date(); today.setHours(0,0,0,0);
     let rows = schedule.map(d => buildDutyRow(d, today));
@@ -8897,6 +9354,97 @@ function computedCourseHandicap(indexVal, tee){
     });
     const sendSwapsBtn = document.getElementById('ts-send-swaps');
     if(sendSwapsBtn) sendSwapsBtn.addEventListener('click', async () => { await sendSwapRequests(); render(); });
+    // Plan a quarter (Booking Duty tab, admin only)
+    const qOpen = document.getElementById('ts-qplan-open');
+    if(qOpen) qOpen.addEventListener('click', () => { openQuarterPlan(); render(); });
+    ['ts-qplan-cancel', 'ts-qplan-cancel2'].forEach(id => {
+      const b = document.getElementById(id);
+      if(b) b.addEventListener('click', () => { quarterPlan = null; render(); });
+    });
+    const qResuggest = () => { suggestQuarterPlan(); render(); };
+    const qQuarter = document.getElementById('ts-qplan-quarter');
+    if(qQuarter) qQuarter.addEventListener('change', () => {
+      quarterPlan.qKey = qQuarter.value; quarterPlan.manual = {};
+      quarterPlan.includeIds = defaultRotationIds(quarterPlan.qKey, quarterPlan.windowOffset);
+      qResuggest();
+    });
+    const qWindow = document.getElementById('ts-qplan-window');
+    if(qWindow) qWindow.addEventListener('change', () => {
+      quarterPlan.windowOffset = parseInt(qWindow.value, 10);
+      quarterPlan.includeIds = defaultRotationIds(quarterPlan.qKey, quarterPlan.windowOffset);
+      qResuggest();
+    });
+    const qReplace = document.getElementById('ts-qplan-replace');
+    if(qReplace) qReplace.addEventListener('change', () => { quarterPlan.replaceExisting = qReplace.checked; qResuggest(); });
+    document.querySelectorAll('[data-qplan-player]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const id = cb.getAttribute('data-qplan-player');
+        quarterPlan.includeIds = quarterPlan.includeIds.filter(x => x !== id);
+        if(cb.checked) quarterPlan.includeIds.push(id);
+        qResuggest();
+      });
+    });
+    const qAll = document.getElementById('ts-qplan-all');
+    if(qAll) qAll.addEventListener('click', () => { quarterPlan.includeIds = data.roster.map(p => p.id); qResuggest(); });
+    const qNone = document.getElementById('ts-qplan-none');
+    if(qNone) qNone.addEventListener('click', () => { quarterPlan.includeIds = []; qResuggest(); });
+    const qShuffle = document.getElementById('ts-qplan-shuffle');
+    if(qShuffle) qShuffle.addEventListener('click', qResuggest);
+    document.querySelectorAll('[data-qplan-pick]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const key = sel.getAttribute('data-qplan-pick');
+        quarterPlan.manual[key] = sel.value;
+        quarterPlan.picks[key] = sel.value;
+        render();
+      });
+    });
+    document.querySelectorAll('[data-qplan-day]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if(!isAdmin) return;
+        const [id, dw] = btn.getAttribute('data-qplan-day').split(':');
+        const dow = parseInt(dw, 10);
+        await updateDutyPrefs(id, p => { p.days = p.days.includes(dow) ? p.days.filter(x => x !== dow) : [...p.days, dow].sort(); return p; });
+        qResuggest();
+      });
+    });
+    document.querySelectorAll('[data-qplan-away-open]').forEach(btn => {
+      btn.addEventListener('click', () => { quarterPlan.awayEditing = btn.getAttribute('data-qplan-away-open'); render(); });
+    });
+    const qAwayCancel = document.getElementById('ts-qplan-away-cancel');
+    if(qAwayCancel) qAwayCancel.addEventListener('click', () => { quarterPlan.awayEditing = null; render(); });
+    const qAwayAdd = document.getElementById('ts-qplan-away-add');
+    if(qAwayAdd) qAwayAdd.addEventListener('click', async () => {
+      if(!isAdmin) return;
+      const from = document.getElementById('ts-qplan-away-from').value;
+      let to = document.getElementById('ts-qplan-away-to').value || from;
+      if(!from){ await showMessage('Pick a date', 'Choose the first day they are away. Leave the second box empty if it is just one day.'); return; }
+      const range = to < from ? { from: to, to: from } : { from, to };
+      const id = qAwayAdd.getAttribute('data-player');
+      quarterPlan.awayEditing = null;
+      await updateDutyPrefs(id, p => { p.away.push(range); p.away.sort((a,b) => a.from.localeCompare(b.from)); return p; });
+      qResuggest();
+    });
+    document.querySelectorAll('[data-qplan-away-del]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if(!isAdmin) return;
+        const [id, idx] = btn.getAttribute('data-qplan-away-del').split(':');
+        await updateDutyPrefs(id, p => { p.away.splice(parseInt(idx, 10), 1); return p; });
+        qResuggest();
+      });
+    });
+    const qSumDet = document.getElementById('ts-qplan-sumdet');
+    if(qSumDet) qSumDet.addEventListener('toggle', () => { if(quarterPlan) quarterPlan.summaryOpen = qSumDet.open; });
+    const qsOpen = document.getElementById('ts-qsum-open');
+    if(qsOpen) qsOpen.addEventListener('click', () => { dutySummary = { qKey: quarterKeyFor(new Date()), windowOffset: ROUNDS_WINDOW_OFFSETS[0] }; render(); });
+    const qsClose = document.getElementById('ts-qsum-close');
+    if(qsClose) qsClose.addEventListener('click', () => { dutySummary = null; render(); });
+    const qsQuarter = document.getElementById('ts-qsum-quarter');
+    if(qsQuarter) qsQuarter.addEventListener('change', () => { dutySummary.qKey = qsQuarter.value; render(); });
+    const qsWindow = document.getElementById('ts-qsum-window');
+    if(qsWindow) qsWindow.addEventListener('change', () => { dutySummary.windowOffset = parseInt(qsWindow.value, 10); render(); });
+    const qSave = document.getElementById('ts-qplan-save');
+    if(qSave) qSave.addEventListener('click', () => saveQuarterPlan());
+
     const swapMoreBtn = document.getElementById('ts-swap-more');
     if(swapMoreBtn) swapMoreBtn.addEventListener('click', () => { swapShowAllDates = true; render(); });
     const clearSwapsBtn = document.getElementById('ts-clear-swaps');
