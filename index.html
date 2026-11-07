@@ -944,6 +944,15 @@
     .ts-players{ display:block !important; max-height:none !important; }
     select{ appearance:none; -webkit-appearance:none; border:none; background:none; font-weight:600; }
     .ts-duty-controls{ display:none !important; }
+    /* Booking duty print-out: dates and other small grey text print dark and
+       easy to read (Tom, Nov 7: dates were very faint on paper). */
+    .ts-duty-cal-date{ color:#000 !important; font-weight:600; }
+    .ts-duty-cal-entry{ border-color:#999 !important; }
+    .ts-duty-cal-name{ color:#000 !important; }
+    .ts-duty-cal-entry.closed{ opacity:1 !important; color:#444 !important; }
+    .ts-duty-cal-entry.closed .ts-duty-cal-date, .ts-duty-cal-entry.closed .ts-duty-cal-name{ color:#444 !important; }
+    .ts-date-dow, .ts-date-mon, .ts-date-num, .ts-duty-row-sub, .ts-note{ color:#000 !important; }
+    .ts-cal-header{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   }
 
   /* Type system (Oct 24): one sans font (Inter) for everything except the
