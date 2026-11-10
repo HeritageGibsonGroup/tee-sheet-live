@@ -5840,7 +5840,7 @@ function computedCourseHandicap(indexVal, tee){
       };
       const notInBet = info.notInBet || [];
       teamsBody = emailTextToHtml(wording.nightlyTeamsIntro, values, htmlValues) +
-        info.teams.map((team, i) => emailPreviewPlayerTable('Team ' + (i + 1), team, null)).join('') +
+        info.teams.map((team, i) => team && team.length ? emailPreviewPlayerTable('Team ' + (i + 1), team, null) : '').join('') +
         (notInBet.length ? emailPreviewPlayerTable('Not in the bet today:', notInBet, null) : '') +
         emailTextToHtml(wording.nightlyTeamsClosing, values, htmlValues);
       // Groups version: the accepted playing groups if there are any,
