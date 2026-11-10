@@ -1020,11 +1020,11 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'November 9, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'November 10, 2026'; // update this each time a change is promoted to live
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.11.09';
+  const APP_VERSION = '2026.11.10';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -3620,8 +3620,7 @@ function computedCourseHandicap(indexVal, tee){
   function scorecardsHtml(dateKey){
     const teamsInfo = data.teams[dateKey];
     if(!teamsInfo) return '';
-    const scorecardRound = data.rounds[dateKey];
-    const scorecardBasis = (scorecardRound && scorecardRound.handicapBasis === 'hc') ? 'hc' : 'so';
+    const scorecardBasis = handicapBasisFor(dateKey);
     const d = new Date(dateKey + 'T00:00:00');
     const dateLabel = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
     const holes = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -3639,7 +3638,9 @@ function computedCourseHandicap(indexVal, tee){
           return `<td class="ts-scorecard-blank${strokes > 0 ? ' ts-score-stroke' : ''}"${strokes > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokes} stroke${strokes===1?'':'s'} here"` : ''}></td>`;
         }).join('');
         const teeNote = p.tee ? ` <span class="ts-team-so">${esc(p.tee)}</span>` : '';
-        const soNote = p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '';
+        const soNote = scorecardBasis === 'hc'
+          ? (typeof p.courseHandicap === 'number' ? ` <span class="ts-team-so">(CH ${p.courseHandicap})</span>` : '')
+          : (p.strokesOff ? ` <span class="ts-team-so">(S.O. ${p.strokesOff})</span>` : '');
         const mainRow = `<tr><td class="ts-score-name">${playerLabel(p)}${teeNote}${soNote}</td>${cells}<td class="ts-scorecard-blank"></td></tr>`;
         // Hybrid tees (Red/Gold, Gold/White, White/Blue, Blue/Black) play a
         // different single tee hole by hole — a thin reference row right under
@@ -4018,6 +4019,47 @@ function computedCourseHandicap(indexVal, tee){
   // based on — S.O. (strokes off the lowest handicap in the field, the
   // default) or CH (full course handicap, no relative adjustment). Picked in
   // Round setup per round.
+  // Which handicap number a round's strokes are actually based on. If
+  // someone picked S.O. or CH in the "Handicap basis" dropdown, that choice
+  // always wins. Otherwise it's automatic: when anyone playing has a plus
+  // (negative) course handicap, like Brock Olson, strokes are S.O. (strokes
+  // off the lowest handicap); when nobody does, everyone plays off their full
+  // course handicap (CH). Rounds before AUTO_HANDICAP_BASIS_FROM keep the old
+  // S.O. default so past bets and money totals don't change.
+  const AUTO_HANDICAP_BASIS_FROM = '2026-11-11';
+  function anyPlusHandicapPlaying(dateKey){
+    const teamsInfo = data.teams[dateKey];
+    const teams = teamsInfo && Array.isArray(teamsInfo.teams) ? teamsInfo.teams : [];
+    if(teams.some(team => team && team.length)){
+      return teams.some(team => (team || []).some(p => typeof p.courseHandicap === 'number' && p.courseHandicap < 0));
+    }
+    return lowestCourseHandicapForDate(dateKey) < 0;
+  }
+  function plusHandicapPlayersFor(dateKey){
+    const teamsInfo = data.teams[dateKey];
+    const teams = teamsInfo && Array.isArray(teamsInfo.teams) ? teamsInfo.teams : [];
+    return teams.flat().filter(p => p && typeof p.courseHandicap === 'number' && p.courseHandicap < 0);
+  }
+  function handicapBasisFor(dateKey){
+    const round = data.rounds[dateKey];
+    const stored = round ? round.handicapBasis : null;
+    if(stored === 'hc') return 'hc';
+    if(round && round.handicapBasisChosen && stored === 'so') return 'so';
+    if(dateKey < AUTO_HANDICAP_BASIS_FROM) return 'so';
+    return anyPlusHandicapPlaying(dateKey) ? 'so' : 'hc';
+  }
+  // Small note beside the dropdown explaining an automatic choice.
+  function handicapBasisAutoNoteHtml(dateKey){
+    const round = data.rounds[dateKey];
+    if(round && (round.handicapBasis === 'hc' || round.handicapBasisChosen)) return '';
+    if(dateKey < AUTO_HANDICAP_BASIS_FROM) return '';
+    const plus = plusHandicapPlayersFor(dateKey);
+    const why = handicapBasisFor(dateKey) === 'hc'
+      ? 'Set automatically: nobody playing has a plus handicap, so everyone uses their full handicap.'
+      : `Set automatically: ${plus.length ? plus.map(p => esc(p.name)).join(', ') + (plus.length === 1 ? ' has' : ' have') : 'someone playing has'} a plus handicap, so strokes are off the lowest handicap.`;
+    return `<span style="font-size:12px; color:#6b6a5e; flex-basis:100%;">${why}</span>`;
+  }
+
   function betStrokesFor(p, basis){
     return basis === 'hc' ? p.courseHandicap : p.strokesOff;
   }
@@ -4064,7 +4106,7 @@ function computedCourseHandicap(indexVal, tee){
         let complete = true;
         let net = 0;
         holes.forEach(h => {
-          const used = teamLowBallHoleNet(team, h, scores, K, round.handicapBasis);
+          const used = teamLowBallHoleNet(team, h, scores, K, handicapBasisFor(dateKey));
           if(used === null){ complete = false; return; }
           net += used;
         });
@@ -4122,7 +4164,7 @@ function computedCourseHandicap(indexVal, tee){
         holes.forEach(h => {
           const par = typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : null;
           if(par === null) return;
-          const used = teamLowBallHoleNet(team, h, scores, K, round.handicapBasis);
+          const used = teamLowBallHoleNet(team, h, scores, K, handicapBasisFor(dateKey));
           if(used === null) return;
           relToPar += used - K * par;
           holesCounted++;
@@ -4153,7 +4195,7 @@ function computedCourseHandicap(indexVal, tee){
         holes.forEach(h => {
           const par = typeof data.holePars[String(h)] === 'number' ? data.holePars[String(h)] : null;
           if(par === null) return;
-          const used = teamLowBallHoleNet(team, h, scores, K, round.handicapBasis);
+          const used = teamLowBallHoleNet(team, h, scores, K, handicapBasisFor(dateKey));
           if(used === null) return;
           running += used - K * par;
           byHole[h] = running;
@@ -6302,7 +6344,7 @@ function computedCourseHandicap(indexVal, tee){
         const cellsHtml = scoreboardHoles.map(h => {
           const v = playerScores[String(h)];
           const played = typeof v === 'number';
-          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
+          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, handicapBasisFor(dateKey)), h, p.tee) : 0;
           const strokeTitle = strokesHere > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokesHere} stroke${strokesHere===1?'':'s'} here"` : '';
           // Not-yet-played holes show a literal "0" in a muted, hatched cell —
           // impossible as a real golf score, so it can never be mistaken for
@@ -6318,7 +6360,7 @@ function computedCourseHandicap(indexVal, tee){
         // & Bets before the round starts, so there's one place to change it.
         // Name on the first line, then tee and S.O. underneath ("Gold (S.O. 12)"),
         // so the name column stays narrow enough for a whole series on a phone.
-        const teeSoLine = [p.tee ? esc(p.tee) : '', p.strokesOff ? `(S.O. ${p.strokesOff})` : ''].filter(Boolean).join(' ');
+        const teeSoLine = [p.tee ? esc(p.tee) : '', handicapBasisFor(dateKey) === 'hc' ? (typeof p.courseHandicap === 'number' ? `(CH ${p.courseHandicap})` : '') : (p.strokesOff ? `(S.O. ${p.strokesOff})` : '')].filter(Boolean).join(' ');
         return `<tr><td class="ts-score-name">${playerLabel(p)}${teeSoLine ? `<br><span class="ts-team-so">${teeSoLine}</span>` : ''}</td>${cellsHtml}</tr>`;
       }).join('');
 
@@ -6464,7 +6506,7 @@ function computedCourseHandicap(indexVal, tee){
           const v = playerScores[String(h)];
           const played = typeof v === 'number';
           if(played) total += v;
-          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), h, p.tee) : 0;
+          const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, handicapBasisFor(dateKey)), h, p.tee) : 0;
           const strokeTitle = strokesHere > 0 ? ` title="${p.name.split(' ')[0]} gets ${strokesHere} stroke${strokesHere===1?'':'s'} here"` : '';
           // Colored by the posted (gross) score against the hole's par, like a
           // printed scorecard: birdie or better green, par beige, bogey pink,
@@ -6477,7 +6519,7 @@ function computedCourseHandicap(indexVal, tee){
         }).join('');
         // Name on the first line, tee and S.O. on the second, so the name
         // column stays narrow enough for all 18 holes to fit on screen.
-        const teeSoLine = [p.tee ? esc(p.tee) : '', p.strokesOff ? `(S.O. ${p.strokesOff})` : ''].filter(Boolean).join(' ');
+        const teeSoLine = [p.tee ? esc(p.tee) : '', handicapBasisFor(dateKey) === 'hc' ? (typeof p.courseHandicap === 'number' ? `(CH ${p.courseHandicap})` : '') : (p.strokesOff ? `(S.O. ${p.strokesOff})` : '')].filter(Boolean).join(' ');
         return `<tr><td class="ts-score-name">${playerLabel(p)}${teeSoLine ? `<br><span class="ts-team-so">${teeSoLine}</span>` : ''}</td>${cellsHtml}<td class="ts-score-name" style="text-align:center; font-weight:600;">${total > 0 ? total : ''}</td></tr>`;
       }).join('');
       // Same running "vs par" row as the Scoreboard tab: the team's low-ball
@@ -6538,7 +6580,7 @@ function computedCourseHandicap(indexVal, tee){
         hbhSeededIds.add(p.id);
       }
       const displayVal = draftVal !== undefined ? draftVal : (typeof committed === 'number' ? String(committed) : '');
-      const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, round.handicapBasis), hbhHole, p.tee) : 0;
+      const strokesHere = exact ? strokesReceivedOnHole(betStrokesFor(p, handicapBasisFor(dateKey)), hbhHole, p.tee) : 0;
       const inputId = `ts-hbh-score-${p.id}`;
       // Hybrid tees (Red/Gold, Gold/White, White/Blue, Blue/Black) play a
       // different single tee hole by hole — informational only, so the
@@ -6551,7 +6593,7 @@ function computedCourseHandicap(indexVal, tee){
         <div class="ts-hbh-row" style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 0; border-bottom:1px solid var(--ivory-line);">
           <div>
             <div class="ts-hbh-player-name">${playerLabel(p)}<span class="ts-hbh-saving${playerIdsSavingNow().has(p.id) ? ' show' : ''}" data-hbh-saving-pid="${p.id}"><span class="ts-busy-spinner"></span>Saving…</span></div>
-            <div class="ts-hbh-player-note">${round.handicapBasis === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
+            <div class="ts-hbh-player-note">${handicapBasisFor(dateKey) === 'hc' ? (typeof p.courseHandicap === 'number' ? `CH ${p.courseHandicap}` : '') : (p.strokesOff ? `S.O. ${p.strokesOff}` : '')}${strokesHere > 0 ? ' · <span class="ts-hbh-stroke-note">gets a stroke here</span>' : ''}${hybridNote}</div>
           </div>
           <div class="ts-hbh-controls" style="display:flex; align-items:center; gap:6px;">
             <button type="button" class="ts-score-step" data-step-for="${inputId}" data-step-dir="-1" data-hbh-score-player="${p.id}" data-hbh-par="${hbhPar !== null ? hbhPar : ''}">−</button>
@@ -6836,10 +6878,11 @@ function computedCourseHandicap(indexVal, tee){
               </label>
               <label style="font-size:12px; color:#6b6a5e; font-weight:500;">Handicap basis
                 <select id="ts-round-handicap-basis" style="margin-left:6px; font-family:'Inter'; font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--ivory-line);">
-                  <option value="so" ${round.handicapBasis==='so'?'selected':''}>S.O. (strokes off)</option>
-                  <option value="hc" ${round.handicapBasis==='hc'?'selected':''}>CH (full course handicap)</option>
+                  <option value="so" ${handicapBasisFor(dateKey)==='so'?'selected':''}>S.O. (strokes off)</option>
+                  <option value="hc" ${handicapBasisFor(dateKey)==='hc'?'selected':''}>CH (full course handicap)</option>
                 </select>
               </label>
+              ${handicapBasisAutoNoteHtml(dateKey)}
             </div>
             ${reviewing ? '' : `
             <div style="display:flex; align-items:center; gap:18px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px dashed var(--ivory-line);">
@@ -6880,7 +6923,7 @@ function computedCourseHandicap(indexVal, tee){
             <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">${round.game === '1ball'
               ? '1-ball: each hole, only the team\'s single lowest net score counts, compared to that hole\'s par.'
               : '2-ball: each hole, the team\'s two lowest net scores count, compared to twice that hole\'s par.'
-            } Needs exact hole handicaps (see above) to allocate strokes hole by hole. Handicap basis: ${round.handicapBasis === 'hc' ? 'strokes are allocated off each player\'s full course handicap (CH).' : 'strokes are allocated off each player\'s strokes-off-the-lowest-handicap-in-the-field (S.O.).'}</p>
+            } Needs exact hole handicaps (see above) to allocate strokes hole by hole. Handicap basis: ${handicapBasisFor(dateKey) === 'hc' ? 'strokes are allocated off each player\'s full course handicap (CH).' : 'strokes are allocated off each player\'s strokes-off-the-lowest-handicap-in-the-field (S.O.).'}</p>
             <p style="margin:6px 0 0; font-size:12px; color:#6b6a5e;">With this starting hole, ${groups.map((holes, si) => `Series ${si+1} is holes ${holes[0]}–${holes[holes.length-1]}`).join(', ')}. On a shotgun start, holes don't need to be entered in this order — jump straight to whichever hole your group just finished in Live Scoring, in any order, and come back to fill in the rest later.</p>
           </div>
         ` : scoringViewMode === 'season' ? `
@@ -8591,6 +8634,9 @@ function computedCourseHandicap(indexVal, tee){
       roundHandicapBasisSelect.onchange = async () => {
         const round = ensureRoundDefaults(scoringSelectedDate);
         round.handicapBasis = roundHandicapBasisSelect.value === 'hc' ? 'hc' : 'so';
+        // Remembers that someone picked this on purpose, so the automatic
+        // default (see handicapBasisFor) never overrides it afterward.
+        round.handicapBasisChosen = true;
         await saveData();
         render();
       };
