@@ -5106,13 +5106,16 @@ function computedCourseHandicap(indexVal, tee){
         const duty = dutyForKey(fmtDateKey(d));
         if(duty && duty.id === meId && !data.closures[fmtDateKey(d)]){
           const bookOpenDate = new Date(d); bookOpenDate.setDate(bookOpenDate.getDate() - BOOKING_WINDOW_DAYS);
-          if(daysBetween(today, bookOpenDate) === 0){
+          // Shown the day before the trip to the pro shop too ("tomorrow"),
+          // as an early heads-up, and again on the day itself ("today").
+          const daysUntilBooking = daysBetween(today, bookOpenDate);
+          if(daysUntilBooking === 0 || daysUntilBooking === 1){
             const count = (data.signups[fmtDateKey(d)]||[]).length;
             const tt = count > 0 ? Math.min(MAX_TEE_TIMES, Math.ceil(count/PLAYERS_PER_TEE_TIME)) : 0;
             const arrival = arrivalTimeFor(fmtDateKey(bookOpenDate));
             const arrivalPhrase = arrival ? `at ${arrival}` : '(time varies by season)';
             const dutyFirstName = meName ? esc(String(meName).trim().split(/\s+/)[0]) : "";
-            reminders.push(`<div class="ts-reminder ts-reminder-urgent"><span class="flag">🏌️</span><div>${dutyFirstName ? `<b>${dutyFirstName}:</b> ` : ""}Head to the pro shop today ${arrivalPhrase} and request ${tt || '?'} tee time${tt===1?'':'s'} for ${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}.</div></div>`);
+            reminders.push(`<div class="ts-reminder ts-reminder-urgent"><span class="flag">🏌️</span><div>${dutyFirstName ? `<b>${dutyFirstName}:</b> ` : ""}Head to the pro shop ${daysUntilBooking === 0 ? 'today' : 'tomorrow'} ${arrivalPhrase} and request ${tt || '?'} tee time${tt===1?'':'s'} for ${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}.</div></div>`);
           }
         }
       });
