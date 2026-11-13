@@ -1028,11 +1028,11 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'November 11, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'November 13, 2026'; // update this each time a change is promoted to live
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.11.11';
+  const APP_VERSION = '2026.11.13';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -2349,6 +2349,11 @@
     // Unassigned. Purely a scoring-UI convenience — the bet is always
     // settled by betting-team roster (data.teams), never by this.
     if(!data.playingGroups) data.playingGroups = {};
+    // Pro shop closed on a normal booking day (Christmas, a snow storm…):
+    // { closedDayKey: requestDayKey } — tee times that would have been
+    // requested on closedDay are requested on requestDay instead. Set under
+    // Admin > Course Information. See bookingDateFor().
+    if(!data.proShopMoves || typeof data.proShopMoves !== 'object') data.proShopMoves = {};
     if(!data.holeHandicaps) data.holeHandicaps = {};
     // Seeded once, the first time this field ever loads, with Heritage's actual
     // Red-tee stroke index (from the club's scorecard) — from then on this is
@@ -2511,8 +2516,61 @@
   // day they go to the pro shop, BOOKING_WINDOW_DAYS earlier. Swap screens
   // label dates this way so they match what the Booking Duty list shows.
   function bookingDayLabelFor(playKey){
-    const d = new Date(playKey + 'T00:00:00'); d.setDate(d.getDate() - BOOKING_WINDOW_DAYS);
+    const d = bookingDateFor(playKey);
     return `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`;
+  }
+
+  // The day someone goes to the pro shop to request a round's tee times.
+  // Normally BOOKING_WINDOW_DAYS before the round, unless the pro shop is
+  // closed that day (Christmas, a snow storm…) and the club lets us request
+  // on another day instead — see data.proShopMoves (Admin > Course
+  // Information > Pro shop closed). Everything that works out a booking day
+  // goes through here or playDatesBookedOn(), so a moved day shows up the
+  // same everywhere: reminders, Booking Duty, the planner, emails.
+  function defaultBookingDateFor(playKey){
+    const d = new Date(playKey + 'T00:00:00'); d.setDate(d.getDate() - BOOKING_WINDOW_DAYS);
+    return d;
+  }
+  function bookingDateFor(playKey){
+    const def = defaultBookingDateFor(playKey);
+    const moved = (data.proShopMoves || {})[fmtDateKey(def)];
+    return moved ? new Date(moved + 'T00:00:00') : def;
+  }
+  // The other direction: which play dates (as Dates, soonest first) have
+  // their tee times requested on this day. Usually exactly one, two weeks
+  // out; none if the pro shop is closed that day; more if another day's
+  // requests were moved onto it.
+  function playDatesBookedOn(day){
+    const dayKey = fmtDateKey(day);
+    const moves = data.proShopMoves || {};
+    const out = [];
+    if(!moves[dayKey]){
+      const t = new Date(day); t.setHours(0,0,0,0); t.setDate(t.getDate() + BOOKING_WINDOW_DAYS);
+      if(PLAY_DOWS.includes(t.getDay())) out.push(t);
+    }
+    Object.keys(moves).forEach(closedKey => {
+      if(moves[closedKey] !== dayKey) return;
+      const t = new Date(closedKey + 'T00:00:00'); t.setDate(t.getDate() + BOOKING_WINDOW_DAYS);
+      if(PLAY_DOWS.includes(t.getDay())) out.push(t);
+    });
+    return out.sort((a,b) => a - b);
+  }
+  // If this day's requests were moved to another day, that day's key.
+  function proShopMovedTo(day){
+    return (data.proShopMoves || {})[fmtDateKey(day)] || null;
+  }
+  // A list of play-day dates (like buildSchedule()) plus any moved-to
+  // request days that fall within its span, in date order — so a Thursday
+  // request day (Dec 24 for Jan 8) still gets its own Booking Duty row.
+  function withMovedBookingDays(days){
+    if(!days.length) return days;
+    const keys = new Set(days.map(d => fmtDateKey(d)));
+    const firstKey = fmtDateKey(days[0]), lastKey = fmtDateKey(days[days.length - 1]);
+    const extra = [];
+    Object.values(data.proShopMoves || {}).forEach(k => {
+      if(k >= firstKey && k <= lastKey && !keys.has(k)){ keys.add(k); extra.push(new Date(k + 'T00:00:00')); }
+    });
+    return days.concat(extra).sort((a,b) => a - b);
   }
 
   function dutyForKey(key){
@@ -2547,7 +2605,7 @@
     // the app). Before the booking day arrives, capacity genuinely isn't
     // decided yet, so this still returns null then.
     const playDate = new Date(key + 'T00:00:00');
-    const bookDate = new Date(playDate); bookDate.setDate(bookDate.getDate() - BOOKING_WINDOW_DAYS);
+    const bookDate = bookingDateFor(key);
     const bookingDayArrived = daysBetween(new Date(), bookDate) <= 0;
     if(!bookingDayArrived) return null;
     const signedUpCount = (data.signups[key] || []).length;
@@ -3275,7 +3333,7 @@
       const key = fmtDateKey(d);
       const duty = dutyForKey(key);
       if(!duty || !duty.email || data.closures[key]) return;
-      const bookOpenDate = new Date(d); bookOpenDate.setDate(bookOpenDate.getDate() - BOOKING_WINDOW_DAYS);
+      const bookOpenDate = bookingDateFor(key);
       if(daysBetween(today, bookOpenDate) !== 1) return;
       const count = (data.signups[key] || []).length;
       const tt = count > 0 ? Math.min(MAX_TEE_TIMES, Math.ceil(count/PLAYERS_PER_TEE_TIME)) : 0;
@@ -4710,13 +4768,20 @@ function computedCourseHandicap(indexVal, tee){
 
     // Tee time duties table
     let dutyRows = '';
-    thisWeek.forEach(d => {
+    withMovedBookingDays(thisWeek).forEach(d => {
       const dateLabel = `${d.getDate()}-${MON_NAMES[d.getMonth()]}`;
-      // Booking duty is about the date two weeks out, not this row's own date — so it
-      // still applies even when this row's date is closed to play. It's the TARGET
-      // date's closure that matters, since that's what decides whether there's
-      // anything to book at all.
-      const target = new Date(d); target.setDate(target.getDate() + BOOKING_WINDOW_DAYS);
+      const movedTo = proShopMovedTo(d);
+      if(movedTo){
+        const m = new Date(movedTo + 'T00:00:00');
+        dutyRows += `<tr><td ${td}>${dateLabel}</td><td ${td}>${dowFull(d)}</td><td ${td}>Pro shop closed — tee times are requested on ${dowFull(m)}, ${FULL_MONTHS[m.getMonth()]} ${m.getDate()} instead</td></tr>`;
+        return;
+      }
+      // Booking duty is about the date two weeks out (or whichever rounds
+      // were moved onto this day), not this row's own date — so it still
+      // applies even when this row's date is closed to play. It's the TARGET
+      // date's closure that matters, since that's what decides whether
+      // there's anything to book at all.
+      playDatesBookedOn(d).forEach(target => {
       const targetKey = fmtDateKey(target);
       let dutyText;
       if(data.closures[targetKey]){
@@ -4728,6 +4793,7 @@ function computedCourseHandicap(indexVal, tee){
         dutyText = targetDuty ? `${esc(firstNameOf(targetDuty.name))} - Get ${targetTT} tee time${targetTT===1?'':'s'} for ${FULL_MONTHS[target.getMonth()]} ${target.getDate()}` : 'Unassigned';
       }
       dutyRows += `<tr><td ${td}>${dateLabel}</td><td ${td}>${dowFull(d)}</td><td ${td}>${dutyText}</td></tr>`;
+      });
     });
     const dutyTable = `${tableOpen}<tr><th ${th}>Date</th><th ${th}>Weekday</th><th ${th}>Tee Time Duties (arrive at club at ${esc(arrivalTime)})</th></tr>${dutyRows}</table>`;
 
@@ -5105,7 +5171,7 @@ function computedCourseHandicap(indexVal, tee){
       schedule.forEach((d) => {
         const duty = dutyForKey(fmtDateKey(d));
         if(duty && duty.id === meId && !data.closures[fmtDateKey(d)]){
-          const bookOpenDate = new Date(d); bookOpenDate.setDate(bookOpenDate.getDate() - BOOKING_WINDOW_DAYS);
+          const bookOpenDate = bookingDateFor(fmtDateKey(d));
           // Shown the day before the trip to the pro shop too ("tomorrow"),
           // as an early heads-up, and again on the day itself ("today").
           const daysUntilBooking = daysBetween(today, bookOpenDate);
@@ -5350,15 +5416,23 @@ function computedCourseHandicap(indexVal, tee){
       const targetDate = new Date(d); targetDate.setDate(targetDate.getDate() + BOOKING_WINDOW_DAYS);
       const targetKey = fmtDateKey(targetDate);
       const targetDuty = dutyForKey(targetKey);
+      // Pro shop closed this day? Its request moved to another day.
+      const cardMovedTo = proShopMovedTo(d);
+      // Requests moved onto this day from a day the pro shop is closed.
+      const movedInDates = playDatesBookedOn(d).filter(t => fmtDateKey(t) !== targetKey);
       // Booking duty is about the date two weeks OUT, not this card's own date — so it
       // stays relevant even when this card's date is closed to play (see midSection
       // below, which shows it regardless). It only drops away once the target date
       // itself is closed, since then there's genuinely nothing to book.
       const targetClosed = !!data.closures[targetKey];
 
-      const dutyControl = targetClosed
+      const movedToLabel = cardMovedTo ? (() => { const m = new Date(cardMovedTo + 'T00:00:00'); return `${DOW_NAMES[m.getDay()]}, ${MON_NAMES[m.getMonth()]} ${m.getDate()}`; })() : '';
+      const dutyControl = (targetClosed
         ? `<span class="ts-duty-static">Course closed ${MON_NAMES[targetDate.getMonth()]} ${targetDate.getDate()} — no one has booking duty ${key === fmtDateKey(new Date()) ? 'today' : 'on ' + MON_NAMES[d.getMonth()] + ' ' + d.getDate()}</span>`
-        : `<span class="ts-duty-static">${targetDuty ? playerLabel(targetDuty) + ' has booking duty' : 'No one has booking duty yet'}</span>`;
+        : cardMovedTo
+          ? `<span class="ts-duty-static">Pro shop closed — ${targetDuty ? playerLabel(targetDuty) : 'whoever has booking duty'} requests the ${MON_NAMES[targetDate.getMonth()]} ${targetDate.getDate()} tee times on ${movedToLabel} instead</span>`
+          : `<span class="ts-duty-static">${targetDuty ? playerLabel(targetDuty) + ' has booking duty' : 'No one has booking duty yet'}</span>`)
+        + movedInDates.filter(t => !data.closures[fmtDateKey(t)]).map(t => { const who = dutyForKey(fmtDateKey(t)); return `<br><span class="ts-duty-static">Also: ${who ? playerLabel(who) : 'someone'} requests the ${MON_NAMES[t.getMonth()]} ${t.getDate()} tee times on ${MON_NAMES[d.getMonth()]} ${d.getDate()} too (pro shop closed on the usual day)</span>`; }).join('');
 
       const generatedTeams = data.teams[key];
       const teamsHtml = generatedTeams ? `
@@ -6986,6 +7060,18 @@ function computedCourseHandicap(indexVal, tee){
       return `<div class="ts-closure-row"><span class="ts-closure-date">${dateLabel}</span>${control}</div>`;
     }).join('');
 
+    // Pro shop closed on a booking day → request on another day instead.
+    // Listed until the round it affects has been played.
+    const ciTodayKey = fmtDateKey(new Date());
+    const longDay = (k) => { const d = new Date(k + 'T00:00:00'); return `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}`; };
+    const proShopMoveRowsHtml = Object.keys(data.proShopMoves || {}).sort().map(closedKey => {
+      const play = new Date(closedKey + 'T00:00:00'); play.setDate(play.getDate() + BOOKING_WINDOW_DAYS);
+      const playKey = fmtDateKey(play);
+      if(playKey < ciTodayKey) return '';
+      const roundNote = PLAY_DOWS.includes(play.getDay()) ? ` (for the ${longDay(playKey)} round)` : '';
+      return `<div class="ts-closure-row"><span class="ts-closure-date">Closed ${longDay(closedKey)}</span><span class="ts-closure-status">Request on ${longDay(data.proShopMoves[closedKey])}${roundNote}</span><button data-remove-proshop-move="${closedKey}">Remove</button></div>`;
+    }).join('');
+
     const noticeRowsHtml = Object.keys(data.notices || {}).sort().map(k => {
       const d = new Date(k + 'T00:00:00');
       const label = `${DOW_NAMES[d.getDay()]}, ${MON_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
@@ -7067,6 +7153,7 @@ function computedCourseHandicap(indexVal, tee){
     const jumpNavHtml = `
       <div class="ts-ci-jumpnav">
         <a href="#ts-ci-closures">Course closures</a>
+        <a href="#ts-ci-proshop">Pro shop closed</a>
         <a href="#ts-ci-notices">Notices</a>
         <a href="#ts-ci-teetimes">First tee times</a>
         <a href="#ts-ci-teeratings">Tee ratings</a>
@@ -7083,6 +7170,17 @@ function computedCourseHandicap(indexVal, tee){
           <h4 style="margin:0 0 4px;">Course closures</h4>
           <p class="ts-note" style="border-top:none; padding-top:0; margin-top:0;">Mark a date closed for an outside event — players won't be able to sign up for it.</p>
           ${closureRowsHtml || '<p class="ts-empty">No upcoming dates.</p>'}
+        </div>
+
+        <div class="ts-import-row ts-ci-section" id="ts-ci-proshop">
+          <span class="ts-import-row-label">Pro shop closed on a booking day</span>
+          <p style="margin:0 0 10px;">When the pro shop is closed on a day someone would normally go in to request tee times (Christmas, a snow storm), and the club lets us request them on another day instead, enter both dates here. The reminders, the Booking Duty list and the booking duty emails all switch to the new day.</p>
+          ${proShopMoveRowsHtml || '<p class="ts-empty">None set.</p>'}
+          <div class="ts-add-row" style="margin-top:10px; flex-wrap:wrap; align-items:center; gap:8px;">
+            <label style="font-size:13px;">Pro shop closed on <input type="date" id="ts-new-proshop-closed"></label>
+            <label style="font-size:13px;">Request tee times on <input type="date" id="ts-new-proshop-request"></label>
+            <button id="ts-add-proshop-move">Add</button>
+          </div>
         </div>
 
         <div class="ts-import-row ts-ci-section" id="ts-ci-notices">
@@ -7221,14 +7319,20 @@ function computedCourseHandicap(indexVal, tee){
 
   // Shared by the normal (forward-looking) Booking Duty tab and the admin-only Past
   // Booking Duty panel — builds one row's worth of data for a given booking date.
-  function buildDutyRow(d, today){
-    const target = new Date(d); target.setDate(target.getDate() + BOOKING_WINDOW_DAYS);
-    const targetKey = fmtDateKey(target);
-    const assigned = dutyForKey(targetKey);
-    const targetCount = (data.signups[targetKey] || []).length;
-    const targetTT = targetCount > 0 ? Math.min(MAX_TEE_TIMES, Math.ceil(targetCount/PLAYERS_PER_TEE_TIME)) : 0;
-    const closed = !!data.closures[targetKey];
-    return { bookDate: d, bookKey: fmtDateKey(d), playDate: target, playKey: targetKey, assigned, tt: targetTT, closed, bookingDayPassed: d < today };
+  // One row per round whose tee times are requested on booking day d —
+  // usually one, none if the pro shop is closed that day (its requests were
+  // moved to another day), occasionally more (see playDatesBookedOn).
+  function buildDutyRows(d, today){
+    return playDatesBookedOn(d).map(target => {
+      const targetKey = fmtDateKey(target);
+      const assigned = dutyForKey(targetKey);
+      const targetCount = (data.signups[targetKey] || []).length;
+      const targetTT = targetCount > 0 ? Math.min(MAX_TEE_TIMES, Math.ceil(targetCount/PLAYERS_PER_TEE_TIME)) : 0;
+      const closed = !!data.closures[targetKey];
+      const def = defaultBookingDateFor(targetKey);
+      const movedFrom = fmtDateKey(def) !== fmtDateKey(d) ? def : null;
+      return { bookDate: d, bookKey: fmtDateKey(d), playDate: target, playKey: targetKey, assigned, tt: targetTT, closed, bookingDayPassed: d < today, movedFrom };
+    });
   }
 
   // The lookback window used by Past Booking Duty: every booking day from exactly
@@ -7238,9 +7342,11 @@ function computedCourseHandicap(indexVal, tee){
   // AFTER it happens (today's own booking day still shows in the normal tab).
   function pastDutyDates(today){
     const dates = [];
-    let cursor = new Date(today); cursor.setDate(cursor.getDate() - BOOKING_WINDOW_DAYS);
+    // Starts a week further back so a booking day that was moved earlier
+    // (pro shop closed) still shows until its round is played.
+    let cursor = new Date(today); cursor.setDate(cursor.getDate() - BOOKING_WINDOW_DAYS - 7);
     while(cursor < today){
-      if(PLAY_DOWS.includes(cursor.getDay())) dates.push(new Date(cursor));
+      if(playDatesBookedOn(cursor).some(t => t >= today)) dates.push(new Date(cursor));
       cursor.setDate(cursor.getDate()+1);
     }
     return dates;
@@ -7284,12 +7390,11 @@ function computedCourseHandicap(indexVal, tee){
     const days = [];
     let cursor = includePast ? new Date(start) : new Date(Math.max(start, today));
     while(cursor <= end){
-      if(PLAY_DOWS.includes(cursor.getDay())){
+      playDatesBookedOn(cursor).forEach(playDate => {
         const bookDate = new Date(cursor);
-        const playDate = new Date(bookDate); playDate.setDate(playDate.getDate() + BOOKING_WINDOW_DAYS);
         const playKey = fmtDateKey(playDate);
         days.push({ bookDate, bookKey: fmtDateKey(bookDate), playDate, playKey, closed: !!data.closures[playKey] });
-      }
+      });
       cursor.setDate(cursor.getDate() + 1);
     }
     return days;
@@ -7665,7 +7770,7 @@ function computedCourseHandicap(indexVal, tee){
 
   function renderDutyPanel(el, schedule){
     const today = new Date(); today.setHours(0,0,0,0);
-    let rows = schedule.map(d => buildDutyRow(d, today));
+    let rows = withMovedBookingDays(schedule).flatMap(d => buildDutyRows(d, today));
 
     const effectiveFilterId = dutyFilterId === '__me__' ? meId : dutyFilterId;
     if(dutySort !== 'calendar'){
@@ -7704,7 +7809,7 @@ function computedCourseHandicap(indexVal, tee){
 
       const subText = r.closed
         ? `<span style="color:var(--rust); font-weight:600;">🚫 Course closed two weeks from today — no need to get tee times</span>`
-        : `Head to the pro shop ${dayRef} ${arrivalPhrase} and request ${r.tt} tee time${r.tt===1?'':'s'} for ${playLabel}.`;
+        : `Head to the pro shop ${dayRef} ${arrivalPhrase} and request ${r.tt} tee time${r.tt===1?'':'s'} for ${playLabel}.${r.movedFrom ? ` <b>Moved:</b> the pro shop is closed ${DOW_NAMES[r.movedFrom.getDay()]}, ${MON_NAMES[r.movedFrom.getMonth()]} ${r.movedFrom.getDate()}, so the club takes this request ${r.bookKey === todayKey ? 'today' : 'on ' + DOW_NAMES[r.bookDate.getDay()] + ', ' + MON_NAMES[r.bookDate.getMonth()] + ' ' + r.bookDate.getDate()} instead.` : ''}`;
 
       // Same rule as the date card: can't confirm real tee times before the actual
       // booking day (r.bookDate) has arrived — you can only go to the pro shop in
@@ -7747,11 +7852,27 @@ function computedCourseHandicap(indexVal, tee){
         <div class="ts-cal-header">Monday</div>
         <div class="ts-cal-header">Wednesday</div>
         <div class="ts-cal-header">Friday</div>`;
-      const firstDow = rows.length ? rows[0].bookDate.getDay() : 1;
+      // The grid is Mon/Wed/Fri, so it's laid out by the normal booking
+      // day. A day whose requests moved (pro shop closed) still gets its own
+      // cell, showing who has the duty and the day it moved to.
+      const shortDate = (dt) => `${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}/${String(dt.getFullYear()).slice(2)}`;
+      const firstDow = schedule.length ? schedule[0].getDay() : 1;
       const padCount = firstDow === 3 ? 1 : firstDow === 5 ? 2 : 0;
       const padHtml = `<div class="ts-cal-cell ts-cal-blank"></div>`.repeat(padCount);
-      const cellsHtml = rows.map(r => {
-        const dateLabel = `${String(r.bookDate.getMonth()+1).padStart(2,'0')}/${String(r.bookDate.getDate()).padStart(2,'0')}/${String(r.bookDate.getFullYear()).slice(2)}`;
+      const cellsHtml = schedule.map(d => {
+        const dateLabel = shortDate(d);
+        const movedTo = proShopMovedTo(d);
+        if(movedTo){
+          const t = new Date(d); t.setDate(t.getDate() + BOOKING_WINDOW_DAYS);
+          const tKey = fmtDateKey(t);
+          const closed = !!data.closures[tKey];
+          const who = dutyForKey(tKey);
+          const nameText = who ? playerLabel(who) : (closed ? '' : 'Unassigned');
+          return `<div class="ts-cal-cell"><div class="ts-duty-cal-entry ${closed?'closed':''}"><span class="ts-duty-cal-date">${dateLabel}</span> <span class="ts-duty-cal-name">${nameText}</span> <span class="ts-duty-cal-date">(pro shop closed — go ${shortDate(new Date(movedTo + 'T00:00:00'))})</span></div></div>`;
+        }
+        const dayRows = buildDutyRows(d, today).filter(r => !r.movedFrom);
+        const r = dayRows[0];
+        if(!r) return `<div class="ts-cal-cell"><div class="ts-duty-cal-entry"><span class="ts-duty-cal-date">${dateLabel}</span></div></div>`;
         const nameText = r.assigned ? playerLabel(r.assigned) : (r.closed ? '' : 'Unassigned');
         return `<div class="ts-cal-cell"><div class="ts-duty-cal-entry ${r.closed?'closed':''}"><span class="ts-duty-cal-date">${dateLabel}</span> <span class="ts-duty-cal-name">${nameText}</span></div></div>`;
       }).join('');
@@ -7761,7 +7882,7 @@ function computedCourseHandicap(indexVal, tee){
 
     // "Swap your booking duty dates": one line per upcoming duty day of mine,
     // each with its own pick of whose duty day to trade for.
-    const allRows = schedule.map(d => buildDutyRow(d, today));
+    const allRows = withMovedBookingDays(schedule).flatMap(d => buildDutyRows(d, today));
     const myDutyRows = meId ? allRows.filter(r => !r.closed && r.assigned && r.assigned.id === meId) : [];
     const swapTargets = allRows.filter(r => !r.closed && r.assigned && r.assigned.id !== meId);
     const dayLabel = (dt) => `${DOW_NAMES[dt.getDay()]}, ${MON_NAMES[dt.getMonth()]} ${dt.getDate()}`;
@@ -7847,7 +7968,7 @@ function computedCourseHandicap(indexVal, tee){
   // here on its own once BOOKING_WINDOW_DAYS have passed (its round has been played).
   function renderPastDutyPanel(el){
     const today = new Date(); today.setHours(0,0,0,0);
-    const rows = pastDutyDates(today).map(d => buildDutyRow(d, today));
+    const rows = pastDutyDates(today).flatMap(d => buildDutyRows(d, today));
 
     const rowsHtml = rows.length ? rows.map(r => {
       const playLabel = `${DOW_NAMES[r.playDate.getDay()]}, ${MON_NAMES[r.playDate.getMonth()]} ${r.playDate.getDate()}`;
@@ -8108,6 +8229,42 @@ function computedCourseHandicap(indexVal, tee){
         if(!isAdmin) return;
         const key = btn.getAttribute('data-remove-tee-time');
         delete data.teeTimeSchedule[key];
+        await saveData();
+        render();
+      };
+    });
+    // Pro shop closed on a booking day. Picking the closed date fills in the
+    // day before as the request day, since that's the usual arrangement.
+    const proShopClosedInput = document.getElementById('ts-new-proshop-closed');
+    const proShopRequestInput = document.getElementById('ts-new-proshop-request');
+    if(proShopClosedInput && proShopRequestInput){
+      proShopClosedInput.onchange = () => {
+        if(!proShopClosedInput.value) return;
+        const d = new Date(proShopClosedInput.value + 'T00:00:00'); d.setDate(d.getDate() - 1);
+        proShopRequestInput.value = fmtDateKey(d);
+      };
+    }
+    const addProShopMoveBtn = document.getElementById('ts-add-proshop-move');
+    if(addProShopMoveBtn){
+      addProShopMoveBtn.onclick = async () => {
+        if(!isAdmin){ const ok = await requireAdmin(); if(!ok) return; render(); return; }
+        const closedVal = proShopClosedInput ? proShopClosedInput.value : '';
+        const requestVal = proShopRequestInput ? proShopRequestInput.value : '';
+        if(!closedVal || !requestVal) return;
+        if(closedVal === requestVal){
+          await showMessage('Pick a different day', 'The day to request tee times has to be different from the day the pro shop is closed.');
+          return;
+        }
+        if(!data.proShopMoves) data.proShopMoves = {};
+        data.proShopMoves[closedVal] = requestVal;
+        await saveData();
+        render();
+      };
+    }
+    document.querySelectorAll('[data-remove-proshop-move]').forEach(btn => {
+      btn.onclick = async () => {
+        if(!isAdmin) return;
+        delete data.proShopMoves[btn.getAttribute('data-remove-proshop-move')];
         await saveData();
         render();
       };
