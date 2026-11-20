@@ -160,6 +160,7 @@
   .ts-comms-notice.ok{ background:#E8EFE9; color:var(--fairway); }
   .ts-comms-notice.warn{ background:#FBEFD5; color:#7a5a12; }
   .ts-comms-aud-label{ display:block; font-size:13px; font-weight:600; color:#6b6a5e; margin-bottom:4px; }
+  .ts-comms-topic-note{ margin:6px 2px 0; font-size:13px; color:#6b6a5e; }
   .ts-comms-btn{
     background:var(--fairway); color:var(--ivory); border:none; padding:9px 16px; border-radius:8px;
     font-size:14px; font-weight:600; cursor:pointer;
@@ -1032,11 +1033,11 @@
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
   const BOOKING_WINDOW_DAYS = 14; // club allows booking 2 weeks ahead
   const WEEKS_AHEAD = 52;
-  const VERSION_DATE = 'November 16, 2026'; // update this each time a change is promoted to live
+  const VERSION_DATE = 'November 20, 2026'; // update this each time a change is promoted to live
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.11.16';
+  const APP_VERSION = '2026.11.20';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -1671,7 +1672,14 @@
   let commsNotice = null;         // one-time note shown after posting a topic: { ok, text }
   let commsSnapshotSeen = null;   // "seen" time as of when the Communications tab was opened (for NEW markers)
   let commsExpanded = new Set();
-  let commsDrafts = { newTitle: '', newBody: '', audience: 'roster', replies: {} };
+  let commsDrafts = { topicType: '', topicDate: '', newTitle: '', newBody: '', audience: 'roster', replies: {} };
+  // The "Topic" menu on Messages. Dropping out / signing up also changes that
+  // date on Upcoming Dates (and remakes teams if they were already made).
+  const COMMS_TOPIC_TYPES = [
+    { value: 'drop', label: 'I am dropping out' },
+    { value: 'join', label: 'I am signing up' },
+    { value: 'other', label: 'Other' }
+  ];
   let commsTickCount = 0;
   // Master switch for Messages, controlled by an admin (Admin > Reminders). null =
   // not heard from the backend yet (the tab stays hidden until it says on). An
@@ -1830,6 +1838,22 @@
         <div class="ts-comms-msg-body">${commsTextHtml(m.body)}</div>
       </div>`;
   }
+  // Dates offered for an "I am dropping out" (dates I'm signed up for) or
+  // "I am signing up" (dates I'm not) topic: the same upcoming, open play
+  // dates Upcoming Dates lists.
+  function commsTopicDateOptions(type){
+    if(!meId || (type !== 'drop' && type !== 'join')) return [];
+    // Signing up offers the next 8 weeks (a full year of dates would make a
+    // very long menu); dropping out offers every date you're signed up for.
+    const limit = new Date(); limit.setHours(0,0,0,0); limit.setDate(limit.getDate() + 56);
+    const limitKey = fmtDateKey(limit);
+    return buildSchedule().map(fmtDateKey).filter(key => {
+      if(type === 'join' && key > limitKey) return false;
+      if(data.closures && data.closures[key]) return false;
+      const mine = (data.signups[key] || []).some(x => x.id === meId);
+      return type === 'drop' ? mine : !mine;
+    });
+  }
   function renderCommsPanel(el){
     if(!el) return;
     const me = meId ? data.roster.find(p => p.id === meId) : null;
@@ -1847,6 +1871,10 @@
     if(commsDrafts.audience === 'next' && !nextCount) commsDrafts.audience = 'roster';
     const emailOn = me.commsEmail !== false;
     const replyEmailOn = me.commsReplyEmail === true;
+    const topicType = commsDrafts.topicType;
+    const isSignupTopic = topicType === 'drop' || topicType === 'join';
+    const topicDates = commsTopicDateOptions(topicType);
+    if(commsDrafts.topicDate && !topicDates.includes(commsDrafts.topicDate)) commsDrafts.topicDate = '';
     const threadHtml = threads.map(t => {
       const open = commsExpanded.has(t.root.id);
       const unreadInThread = seenSnap !== null && [t.root].concat(t.replies).some(m => m.authorId !== meId && (m.createdAt || 0) > seenSnap);
@@ -1879,8 +1907,21 @@
           <option value="next" ${nextCount ? '' : 'disabled'}>⛳ Next round's players${nextRound.key ? ' — ' + esc(nextRound.label) : ''} (${nextCount ? nextCount + ' confirmed' : 'nobody confirmed yet'})</option>
           <option value="roster">👥 All ${data.roster.filter(p => !p.isGuest).length} roster players</option>
         </select>
-        <input type="text" id="ts-comms-new-title" maxlength="120" placeholder="Topic title" class="ts-comms-input">
-        <textarea id="ts-comms-new-body" rows="3" maxlength="2000" placeholder="What would you like to say?" class="ts-comms-input" style="margin-top:8px;"></textarea>
+        <label class="ts-comms-aud-label" for="ts-comms-topic-type">Topic</label>
+        <select id="ts-comms-topic-type" class="ts-comms-input">
+          <option value="" ${topicType ? '' : 'selected'} disabled>Choose a topic…</option>
+          ${COMMS_TOPIC_TYPES.map(t => `<option value="${t.value}" ${topicType === t.value ? 'selected' : ''}>${esc(t.label)}</option>`).join('')}
+        </select>
+        ${isSignupTopic ? (topicDates.length ? `
+          <label class="ts-comms-aud-label" for="ts-comms-topic-date" style="margin-top:8px;">Date</label>
+          <select id="ts-comms-topic-date" class="ts-comms-input">
+            <option value="" ${commsDrafts.topicDate ? '' : 'selected'} disabled>Pick a date…</option>
+            ${topicDates.map(k => `<option value="${k}" ${commsDrafts.topicDate === k ? 'selected' : ''}>${esc(commsDateLabel(k))}</option>`).join('')}
+          </select>
+          <p class="ts-comms-topic-note">${topicType === 'drop' ? "When you post, you'll be taken off this date on Upcoming Dates." : "When you post, you'll be signed up for this date on Upcoming Dates."} If teams have already been made for that day, they'll be made again to include the change.</p>`
+          : `<p class="ts-comms-topic-note">${topicType === 'drop' ? "You aren't signed up for any upcoming dates." : "You're already signed up for every upcoming date."}</p>`) : ''}
+        ${topicType === 'other' ? `<input type="text" id="ts-comms-new-title" maxlength="120" placeholder="Topic title" class="ts-comms-input" style="margin-top:8px;">` : ''}
+        <textarea id="ts-comms-new-body" rows="3" maxlength="2000" placeholder="${isSignupTopic ? 'Add a note (optional)' : 'What would you like to say?'}" class="ts-comms-input" style="margin-top:8px;"></textarea>
         ${commsNotice ? `<div class="ts-comms-notice ${commsNotice.ok ? 'ok' : 'warn'}">${esc(commsNotice.text)}</div>` : ''}
         <div style="margin-top:8px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <button type="button" class="ts-comms-btn" id="ts-comms-post">Post topic</button>
@@ -1897,12 +1938,22 @@
     // Restore anything typed before a redraw.
     const titleEl = document.getElementById('ts-comms-new-title');
     const bodyEl = document.getElementById('ts-comms-new-body');
-    titleEl.value = commsDrafts.newTitle;
+    if(titleEl){
+      titleEl.value = commsDrafts.newTitle;
+      titleEl.addEventListener('input', () => { commsDrafts.newTitle = titleEl.value; });
+    }
+    const topicTypeEl = document.getElementById('ts-comms-topic-type');
+    topicTypeEl.addEventListener('change', () => {
+      commsDrafts.topicType = topicTypeEl.value;
+      commsDrafts.topicDate = '';
+      renderCommsPanel(el);
+    });
+    const topicDateEl = document.getElementById('ts-comms-topic-date');
+    if(topicDateEl) topicDateEl.addEventListener('change', () => { commsDrafts.topicDate = topicDateEl.value; });
     const audEl = document.getElementById('ts-comms-audience');
     audEl.value = commsDrafts.audience;
     audEl.addEventListener('change', () => { commsDrafts.audience = audEl.value; });
     bodyEl.value = commsDrafts.newBody;
-    titleEl.addEventListener('input', () => { commsDrafts.newTitle = titleEl.value; });
     bodyEl.addEventListener('input', () => { commsDrafts.newBody = bodyEl.value; });
     el.querySelectorAll('[data-comms-reply-box]').forEach(box => {
       const tid = box.getAttribute('data-comms-reply-box');
@@ -1945,6 +1996,9 @@
   }
   async function commsSubmitTopic(el){
     if(commsPosting) return;
+    const type = commsDrafts.topicType;
+    if(!type){ await showMessage('Choose a topic', 'Pick a topic from the Topic menu first.'); return; }
+    if(type === 'drop' || type === 'join'){ await commsSubmitSignupTopic(el, type); return; }
     const title = commsDrafts.newTitle.trim();
     const body = commsDrafts.newBody.trim();
     if(!title){ await showMessage('Add a title', 'Give your topic a short title first.'); return; }
@@ -1952,19 +2006,81 @@
     commsPosting = true;
     const btn = document.getElementById('ts-comms-post');
     if(btn) btn.disabled = true;
+    const r = await commsPostNewTopic(title, body, null);
+    commsPosting = false;
+    renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+    return r;
+  }
+  // Posts a new topic and resets the form. extraNotice is added in front of
+  // the "Emailed N people" note (used to say what changed on Upcoming Dates).
+  async function commsPostNewTopic(title, body, extraNotice){
     const id = commsNewId();
     const r = await commsRequest('post_comms', { message: { id, authorId: meId, title, body, audience: commsDrafts.audience } });
-    commsPosting = false;
     if(r.ok){
+      commsDrafts.topicType = ''; commsDrafts.topicDate = '';
       commsDrafts.newTitle = ''; commsDrafts.newBody = '';
       commsDrafts.audience = 'roster';
+      const lead = extraNotice ? extraNotice + ' ' : '';
       if(r.isTopic){
-        if(r.emailed > 0) commsNotice = { ok: true, text: 'Posted. Emailed ' + r.emailed + ' ' + (r.emailed === 1 ? 'person' : 'people') + '.' };
-        else commsNotice = { ok: false, text: 'Posted in the app, but no email was sent: ' + (r.emailNote || 'unknown reason') + '.' };
+        if(r.emailed > 0) commsNotice = { ok: true, text: lead + 'Posted. Emailed ' + r.emailed + ' ' + (r.emailed === 1 ? 'person' : 'people') + '.' };
+        else commsNotice = { ok: false, text: lead + 'Posted in the app, but no email was sent: ' + (r.emailNote || 'unknown reason') + '.' };
+      } else if(lead){
+        commsNotice = { ok: true, text: lead + 'Posted.' };
       }
       commsExpanded.add(id);
+    } else if(extraNotice){
+      commsNotice = { ok: false, text: extraNotice + ' The message itself did not post. Try posting it again as "Other".' };
     }
-    renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+    return r;
+  }
+  // "I am dropping out" / "I am signing up": change the date on Upcoming
+  // Dates first (same steps as the menu there), remake that day's teams if
+  // they were already made, save, and only then post the message, so the
+  // message never says something that didn't actually happen.
+  async function commsSubmitSignupTopic(el, type){
+    const key = commsDrafts.topicDate;
+    if(!key){ await showMessage('Pick a date', type === 'drop' ? 'Choose the date you are dropping out of.' : 'Choose the date you are signing up for.'); return; }
+    const me = data.roster.find(p => p.id === meId);
+    if(!me) return;
+    const wantIn = type === 'join';
+    const dateLabel = commsDateLabel(key);
+    const alreadyThere = (data.signups[key] || []).some(x => x.id === meId) === wantIn;
+    if(alreadyThere){
+      await showMessage(wantIn ? 'Already signed up' : 'Not signed up', wantIn ? `You're already signed up for ${dateLabel}.` : `You aren't signed up for ${dateLabel}.`);
+      renderCommsPanel(document.getElementById('ts-comms-panel') || el);
+      return;
+    }
+    commsPosting = true;
+    const btn = document.getElementById('ts-comms-post');
+    if(btn) btn.disabled = true;
+    try{
+      const changed = await applyMySignupChange(key, wantIn);
+      if(!changed){ return; }
+      const teamsRemade = regenerateTeamsAfterSignupChange(key);
+      render();
+      const saved = await saveData();
+      if(!saved){
+        // saveData() already said the save didn't go through. Don't post a
+        // message about a change the server never got.
+        return;
+      }
+      const standby = wantIn && !confirmedIdsFor(key).includes(meId);
+      const title = (wantIn ? 'I am signing up' : 'I am dropping out') + ': ' + dateLabel;
+      const lines = [];
+      const note = commsDrafts.newBody.trim();
+      lines.push(note || (wantIn
+        ? `${me.name} has signed up for ${dateLabel}.`
+        : `${me.name} has dropped out of ${dateLabel}.`));
+      if(standby) lines.push(`(${me.name.split(' ')[0]} is on the standby list for now.)`);
+      if(teamsRemade) lines.push(`The teams for ${dateLabel} have been made again to include this change.`);
+      const what = wantIn
+        ? (standby ? `You're on the standby list for ${dateLabel} on Upcoming Dates.` : `You're signed up for ${dateLabel} on Upcoming Dates.`)
+        : `You've been taken off ${dateLabel} on Upcoming Dates.`;
+      await commsPostNewTopic(title, lines.join('\n\n'), what + (teamsRemade ? ' The teams for that day were made again.' : ''));
+    } finally {
+      commsPosting = false;
+      render();
+    }
   }
   async function commsSubmitReply(el, threadId){
     if(commsPosting) return;
@@ -2706,6 +2822,64 @@
     const mins = parseTimeString(first);
     if(mins === null) return null;
     return formatMinutesAsTime(mins - 120);
+  }
+
+  // Signs the current player (meId) in or out of a date — the same steps the
+  // Upcoming Dates "I'm in / Remove me" menu takes (standby/bump checks, the
+  // usual emails, team cleanup). Shared with Messages, where "I am signing
+  // up" / "I am dropping out" topics make the same change. Changes data in
+  // memory only; the caller renders and saves. Returns true if anything
+  // changed.
+  async function applyMySignupChange(key, wantIn){
+    if(!meId || data.closures[key]) return false;
+    const list = data.signups[key] || (data.signups[key] = []);
+    const idx = list.findIndex(x => x.id === meId);
+    const capacity = capacityFor(key);
+    if(wantIn && idx === -1){
+      const beforeConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
+      const beforeSignedUpIds = list.map(x => x.id);
+      const me = data.roster.find(p => p.id === meId);
+      const entry = { id: meId, holes: '18' };
+      if(me && me.defaultTee) entry.tee = me.defaultTee;
+      list.push(entry);
+      // Full day with a nine-hole player in it: joining for 18 takes their
+      // spot, so check the player really wants 18 before anyone is bumped.
+      if(beforeConfirmedIds.some(id => !confirmedIdsFor(key).includes(id))){
+        const play18 = await askConfirm('This day is full', "Signing up for 18 holes moves a nine-hole player to the standby list and gives you their spot. If you only want nine holes, you'll go on standby instead.", 'Play 18', 'Play nine');
+        if(!play18) entry.holes = 'F9';
+      }
+      logActivity('signup', { dateKey: key });
+      // If teams were already generated for this date and there's room
+      // (within confirmed tee times), reconcile them right away so this
+      // signup shows up in Swap players instead of waiting for a page
+      // reload — see normalizeTeams().
+      normalizeTeams();
+      notifyStatusChanges(key, beforeConfirmedIds, beforeSignedUpIds, meId);
+    } else if(!wantIn && idx !== -1){
+      const beforeConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
+      const droppedPlayer = data.roster.find(p => p.id === meId);
+      const wasConfirmed = beforeConfirmedIds.includes(meId);
+      list.splice(idx,1);
+      logActivity('dropout', { dateKey: key });
+      // If teams were already generated for this date, drop this player out of
+      // them too (team slot or "Not in Bet") right away — otherwise they'd
+      // linger as a ghost in Swap players until the next page load runs the
+      // same cleanup (see normalizeTeams()).
+      normalizeTeams();
+      const afterConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
+      const newlyPromoted = afterConfirmedIds.filter(id => !beforeConfirmedIds.includes(id));
+      if(newlyPromoted.length) notifyPromoted(key, newlyPromoted);
+      maybeNotifyExtraTeeTime(key, list.length + 1, list.length, droppedPlayer);
+      // A drop-out on the day of play itself is the one that actually
+      // strands a foursome — tee times are already booked, so unlike an
+      // advance drop-out (which just quietly opens the spot to standby),
+      // this goes out to the whole group right away instead of waiting
+      // for tomorrow's admin-only activity digest.
+      if(wasConfirmed && key === fmtDateKey(new Date()) && droppedPlayer) notifyDayOfDropout(key, droppedPlayer.name);
+    } else {
+      return false;
+    }
+    return true;
   }
 
   function findSignup(key, id){
@@ -3910,6 +4084,33 @@ function computedCourseHandicap(indexVal, tee){
           <button type="button" class="ts-accept-scores-btn" id="ts-generate-teams-btn">${alreadyGenerated ? 'Regenerate teams' : 'Generate suggested teams now'}</button>
         ` : `<p class="ts-empty">No upcoming play date yet.</p>`}
       </div>`;
+  }
+
+  // After a "I am signing up" / "I am dropping out" message changes a date's
+  // signups: if teams were already generated for that date, make them again
+  // from the new list of players (any manual swaps are replaced, the same as
+  // "Regenerate teams"). Left alone once scoring has started for that round,
+  // so a late change never scrambles scores already entered. Changes data in
+  // memory only; the caller saves. Returns true if teams were remade.
+  function regenerateTeamsAfterSignupChange(key){
+    if(!key || !data.teams || !data.teams[key]) return false;
+    const round = data.rounds && data.rounds[key];
+    const scoresStarted = !!(round && round.scores && Object.keys(round.scores).some(pid => round.scores[pid] && Object.keys(round.scores[pid]).length));
+    if(scoresStarted) return false;
+    // Same check "Regenerate teams" offers an admin: if more 18-hole players
+    // are now confirmed than the team count allows for, use the bigger count
+    // so nobody is left out of the bet for no reason. Never lowers it.
+    const suggested = suggestedTeamCountFor(key);
+    const current = confirmedTeeTimesCountFor(key);
+    if(suggested !== null && current !== null && suggested > current){
+      if(!data.teamsTeeTimesOverride) data.teamsTeeTimesOverride = {};
+      data.teamsTeeTimesOverride[key] = suggested;
+    }
+    const result = computeTeamsForDate(key);
+    if(!result) return false;
+    data.teams[key] = result;
+    ensureRoundDefaults(key).teamsAccepted = true;
+    return true;
   }
 
   // confirmOverwrite, if given, is called (with the date key) when teams already
@@ -9912,55 +10113,7 @@ function computedCourseHandicap(indexVal, tee){
         e.stopPropagation();
         if(!meId) return;
         const key = sel.getAttribute('data-signup-select');
-        if(data.closures[key]) return;
-        const list = data.signups[key] || (data.signups[key] = []);
-        const idx = list.findIndex(x => x.id === meId);
-        const capacity = capacityFor(key);
-        const wantIn = sel.value === 'in';
-        if(wantIn && idx === -1){
-          const beforeConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
-          const beforeSignedUpIds = list.map(x => x.id);
-          const me = data.roster.find(p => p.id === meId);
-          const entry = { id: meId, holes: '18' };
-          if(me && me.defaultTee) entry.tee = me.defaultTee;
-          list.push(entry);
-          // Full day with a nine-hole player in it: joining for 18 takes their
-          // spot, so check the player really wants 18 before anyone is bumped.
-          if(beforeConfirmedIds.some(id => !confirmedIdsFor(key).includes(id))){
-            const play18 = await askConfirm('This day is full', "Signing up for 18 holes moves a nine-hole player to the standby list and gives you their spot. If you only want nine holes, you'll go on standby instead.", 'Play 18', 'Play nine');
-            if(!play18) entry.holes = 'F9';
-          }
-          logActivity('signup', { dateKey: key });
-          // If teams were already generated for this date and there's room
-          // (within confirmed tee times), reconcile them right away so this
-          // signup shows up in Swap players instead of waiting for a page
-          // reload — see normalizeTeams().
-          normalizeTeams();
-          notifyStatusChanges(key, beforeConfirmedIds, beforeSignedUpIds, meId);
-        } else if(!wantIn && idx !== -1){
-          const beforeConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
-          const droppedPlayer = data.roster.find(p => p.id === meId);
-          const wasConfirmed = beforeConfirmedIds.includes(meId);
-          list.splice(idx,1);
-          logActivity('dropout', { dateKey: key });
-          // If teams were already generated for this date, drop this player out of
-          // them too (team slot or "Not in Bet") right away — otherwise they'd
-          // linger as a ghost in Swap players until the next page load runs the
-          // same cleanup (see normalizeTeams()).
-          normalizeTeams();
-          const afterConfirmedIds = splitConfirmedStandby(list, capacity).confirmed.map(x => x.id);
-          const newlyPromoted = afterConfirmedIds.filter(id => !beforeConfirmedIds.includes(id));
-          if(newlyPromoted.length) notifyPromoted(key, newlyPromoted);
-          maybeNotifyExtraTeeTime(key, list.length + 1, list.length, droppedPlayer);
-          // A drop-out on the day of play itself is the one that actually
-          // strands a foursome — tee times are already booked, so unlike an
-          // advance drop-out (which just quietly opens the spot to standby),
-          // this goes out to the whole group right away instead of waiting
-          // for tomorrow's admin-only activity digest.
-          if(wasConfirmed && key === fmtDateKey(new Date()) && droppedPlayer) notifyDayOfDropout(key, droppedPlayer.name);
-        } else {
-          return;
-        }
+        if(!(await applyMySignupChange(key, sel.value === 'in'))) return;
         // Render immediately so the change is visible right away, instead of waiting
         // on the full save round-trip (a staleness check plus the write, with retries)
         // before the UI updates — that wait was what made "I'm in" feel slow.
