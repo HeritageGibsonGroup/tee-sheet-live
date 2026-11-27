@@ -408,6 +408,9 @@
      Scoreboard). Only ever applied to a single, uniquely-lowest cell — see
      seriesWinnerIndex — so a tie is simply never circled, no other marking
      needed to tell the two states apart. */
+  /* No bet today (five or fewer playing) — Scoring & Bets and the date card */
+  .ts-no-bet-box{ margin:12px 0 0; padding:10px 14px; border:1px solid var(--brass); border-radius:10px; background:#FBF6EA; font-size:14px; line-height:1.45; }
+  .ts-no-bet-line{ margin:2px 0 6px; font-size:13px; font-weight:600; color:var(--rust); }
   .ts-press-box{ margin:12px 0; padding:12px 14px; border:1px solid var(--brass); border-radius:10px; background:#FBF6EA; }
   .ts-press-title{ font-family:'Inter'; font-size:15px; font-weight:600; margin:0 0 6px; }
   .ts-press-line{ margin:0 0 8px; font-size:14px; line-height:1.45; }
@@ -1028,6 +1031,13 @@
   // out of the bet rather than being folded into a bigger team — e.g. 10
   // players / 3 confirmed tee times = three teams of 3, one sitting out.
   const MAX_BET_TEAM_SIZE = 3;
+  // No bet when five or fewer are playing (Tom, Nov 27, 2026). Counts only
+  // the confirmed 18-hole players; nine-hole players are left out of the
+  // count (Tom, Nov 27). Rounds before
+  // NO_BET_RULE_START keep their money as it was. Code_*.gs has the same
+  // rule (noBetFor_) — keep them matching.
+  const NO_BET_MAX_PLAYERS = 5;
+  const NO_BET_RULE_START = '2026-11-27';
   const PRO_SHOP_EMAILS = ['rdelfs@theheritageclub.net', 'rsatterwhite@theheritageclub.net'];
   // Extra CC on just the "playing tomorrow" reminder (not the pro-shop duty one).
   const GOLF_TOMORROW_EXTRA_CC = ['stevekirchhoff52@gmail.com', 'rtleene@aol.com'];
@@ -1037,7 +1047,7 @@
   // Shown in the top-right corner next to the script's own SCRIPT_VERSION, so
   // it's easy to see which page and script versions a site is running.
   // Bump it with every change to this file.
-  const APP_VERSION = '2026.11.27';
+  const APP_VERSION = '2026.11.27b';
   const PLAY_DOWS = [1,3,5]; // Mon, Wed, Fri
   const HOLES_CYCLE = ['18','F9','B9'];
   const HOLES_LABEL = { '18': '18 holes', 'F9': 'Front 9', 'B9': 'Back 9' };
@@ -3746,6 +3756,28 @@ function computedCourseHandicap(indexVal, tee){
     return { teams, notInBet: [...nineHoleOut, ...oddOneOut], generatedAt: new Date().toISOString() };
   }
 
+  // How many are playing 18 holes on dateKey: the confirmed players once tee
+  // times are known, otherwise everyone signed up (same as computeTeamsForDate).
+  // Nine-hole players don't count toward the no-bet rule.
+  function playingCountFor(dateKey){
+    const entries = data.signups[dateKey] || [];
+    const { confirmed } = splitConfirmedStandby(entries, capacityFor(dateKey));
+    return (confirmed.length ? confirmed : entries).filter(e => e.holes === '18').length;
+  }
+
+  // True when there's no bet that day: five or fewer playing (see
+  // NO_BET_MAX_PLAYERS). Teams and scoring still work as usual; the money
+  // for the day is just $0 and there's no press.
+  function noBetFor(dateKey){
+    if(!dateKey || dateKey < NO_BET_RULE_START) return false;
+    return playingCountFor(dateKey) <= NO_BET_MAX_PLAYERS;
+  }
+
+  function noBetNoteText(dateKey){
+    const n = playingCountFor(dateKey);
+    return `Only ${n} ${n === 1 ? 'player is' : 'players are'} playing 18 holes, and there's no bet with ${NO_BET_MAX_PLAYERS} or fewer. Scores can still be entered as usual.`;
+  }
+
   // The same lowest-course-handicap baseline computeTeamsForDate would use for
   // this date, re-derived from that day's actual 18-hole signups rather than
   // whoever happens to be on a team right now — so a player swapped onto a team
@@ -4429,7 +4461,9 @@ function computedCourseHandicap(indexVal, tee){
     if(!teamsInfo || !round) return null;
     const groups = seriesHoleGroups(round.startHole);
     const scores = round.scores || {};
-    const stake = round.stakePerSeries;
+    // Five or fewer playing: no bet, so every series is worth $0.
+    const noBet = noBetFor(dateKey);
+    const stake = noBet ? 0 : round.stakePerSeries;
     const exact = holeHandicapsCompleteForTeams(teamsInfo);
     const game = round.game === '1ball' ? '1ball' : '2ball';
     const K = lowBallCountFor(game);
@@ -4502,7 +4536,7 @@ function computedCourseHandicap(indexVal, tee){
       pressResults.push({ teamIndex: ti, by: pr.by || '', at: pr.at || 0, outcome });
     });
 
-    return { groups, teamSeriesNet, seriesResults, teamTotals, stake, exact, game, pressResults };
+    return { groups, teamSeriesNet, seriesResults, teamTotals, stake, exact, game, pressResults, noBet };
   }
 
   // Who can press Series 3 right now: a team that lost Series 1 AND Series 2
@@ -4513,6 +4547,7 @@ function computedCourseHandicap(indexVal, tee){
     const teamsInfo = data.teams[dateKey];
     const round = data.rounds[dateKey];
     if(!teamsInfo || !round || !standings || NUM_SERIES < 3) return [];
+    if(standings.noBet) return []; // no bet today, so nothing to press
     const [s1, s2] = standings.seriesResults;
     const s3 = standings.seriesResults[NUM_SERIES - 1];
     if(!s1 || !s2 || !s3) return [];
@@ -4643,6 +4678,7 @@ function computedCourseHandicap(indexVal, tee){
       const standings = computeSeriesStandings(dateKey);
       const teamsInfo = data.teams[dateKey];
       if(!standings || !teamsInfo) return;
+      if(standings.noBet) return; // no bet that day, so it isn't a money round
       teamsInfo.teams.forEach((team, ti) => {
         const teamTotal = standings.teamTotals[ti] || 0;
         team.forEach(p => {
@@ -5774,6 +5810,7 @@ function computedCourseHandicap(indexVal, tee){
       const teamsHtml = generatedTeams ? `
         <div class="ts-teams-block">
           <div class="ts-chip-group-label">Suggested teams</div>
+          ${noBetFor(key) ? `<div class="ts-no-bet-line">No bet: ${NO_BET_MAX_PLAYERS} or fewer playing 18 holes</div>` : ''}
           ${generatedTeams.teams.map((team, i) => `
             <div class="ts-team-row">
               <span class="ts-team-num">Team ${i+1}</span>
@@ -7125,7 +7162,7 @@ function computedCourseHandicap(indexVal, tee){
               <tr>
                 <th></th>
                 ${groups.map((holes, si) => `<th>Series ${si+1}</th>`).join('')}
-                <th>Wins/Losses</th>
+                ${standings.noBet ? '' : '<th>Wins/Losses</th>'}
               </tr>
             </thead>
             <tbody>
@@ -7140,7 +7177,7 @@ function computedCourseHandicap(indexVal, tee){
                     const won = ti === seriesWinnerIndex(si);
                     return `<td>${won ? `<span class="ts-series-winner">${fmtRelToPar(cell.relToPar)}</span>` : fmtRelToPar(cell.relToPar)}</td>`;
                   }).join('')}
-                  <td style="font-weight:700; color:${total>0?'var(--fairway)':total<0?'var(--rust)':'inherit'};">${fmtMoney(total)}</td>
+                  ${standings.noBet ? '' : `<td style="font-weight:700; color:${total>0?'var(--fairway)':total<0?'var(--rust)':'inherit'};">${fmtMoney(total)}</td>`}
                 </tr>`;
               }).join('')}
             </tbody>
@@ -7153,7 +7190,7 @@ function computedCourseHandicap(indexVal, tee){
     const pressEligible = pressEligibleTeams(dateKey, standings);
     const pressMade = standings ? (standings.pressResults || []) : [];
     const pressStake = standings ? standings.stake : round.stakePerSeries;
-    const pressHtml = (pressEligible.length || pressMade.length) ? `
+    const pressHtml = (standings && standings.noBet) ? '' : (pressEligible.length || pressMade.length) ? `
       <div class="ts-press-box">
         <div class="ts-press-title">Press</div>
         ${pressMade.map(pr => {
@@ -7303,6 +7340,7 @@ function computedCourseHandicap(indexVal, tee){
           <button class="ts-subtab ${scoringViewMode==='scoreboard'?'active':''}" data-scoring-view="scoreboard">Scoreboard</button>
           <button class="ts-subtab ${scoringViewMode==='season'?'active':''}" data-scoring-view="season">Money Status</button>
         </div>
+        ${scoringViewMode !== 'season' && noBetFor(dateKey) ? `<div class="ts-no-bet-box"><b>No bet today.</b> ${esc(noBetNoteText(dateKey))}</div>` : ''}
 
         ${scoringViewMode === 'setup' ? `
           <h4 style="margin:16px 0 4px;">Set up &amp; Bets</h4>
